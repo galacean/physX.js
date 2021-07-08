@@ -1,6 +1,6 @@
 # physX.js
 
-physX compiled by Emscripten SDK.
+physX (aka PhysX_4.1.1.27006925) compiled by Emscripten SDK.
 
 ## Requirement
 
