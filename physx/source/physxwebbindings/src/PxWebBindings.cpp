@@ -295,9 +295,15 @@ EMSCRIPTEN_BINDINGS(physx)
       .function("getScenePvdClient", &PxScene::getScenePvdClient, allow_raw_pointers())
       .function("getActors", &PxScene::getActors, allow_raw_pointers())
       .function("setVisualizationCullingBox", &PxScene::setVisualizationCullingBox)
-      .function("simulate", optional_override(
-                                [](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
-                                  scene.simulate(elapsedTime, NULL, 0, 0, controlSimulation);
+      .function("collide", optional_override(
+                                [](PxScene &scene, PxReal elapsedTime) {
+                                  scene.collide(elapsedTime);
+                                  return;
+                                }))
+      .function("fetchCollision", &PxScene::fetchCollision)
+      .function("advance", optional_override(
+                                [](PxScene &scene) {
+                                  scene.advance();
                                   return;
                                 }))
       .function("fetchResults", optional_override(
@@ -308,6 +314,11 @@ EMSCRIPTEN_BINDINGS(physx)
                                       bool fetched = scene.fetchResults(block);
                                       return fetched;
                                     }))
+      .function("simulate", optional_override(
+                                [](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
+                                  scene.simulate(elapsedTime, NULL, 0, 0, controlSimulation);
+                                  return;
+                                }))
       .function("raycast", &PxScene::raycast, allow_raw_pointers())
       .function("raycastAny", optional_override(
                                 [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance) {
@@ -315,8 +326,8 @@ EMSCRIPTEN_BINDINGS(physx)
                                   return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit);
                                 }))
       .function("raycastSingle", optional_override(
-                                [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance, PxRaycastHit &hit) {
-                                  return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance, PxHitFlags(PxHitFlag::eDEFAULT), hit);
+                                [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance, PxRaycastHit &hit, const PxSceneQueryFilterData &filterData) {
+                                  return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance, PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData);
                                 }))
       .function("sweep", &PxScene::sweep, allow_raw_pointers())
       .function("sweepAny", optional_override(
@@ -648,13 +659,19 @@ EMSCRIPTEN_BINDINGS(physx)
       .function("move", &PxController::move, allow_raw_pointers())
       .function("setPosition", &PxController::setPosition)
       .function("getPosition", &PxController::getPosition)
-      .function("setSimulationFilterData", optional_override(
+      .function("setQueryFilterData", optional_override(
           [](PxController &ctrl, PxFilterData &data) {
             PxRigidDynamic* actor = ctrl.getActor();
             PxShape* shape;
             actor->getShapes(&shape, 1);
-            shape->setSimulationFilterData(data);
-            return;
+            shape->setQueryFilterData(data);
+          }))
+      .function("getQueryFilterData", optional_override(
+          [](PxController &ctrl, PxFilterData &data) {
+            PxRigidDynamic* actor = ctrl.getActor();
+            PxShape* shape;
+            actor->getShapes(&shape, 1);
+            return shape->getQueryFilterData();
           }));
 
   class_<PxControllerDesc>("PxControllerDesc")
