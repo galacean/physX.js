@@ -404,6 +404,9 @@ EMSCRIPTEN_BINDINGS(physx) {
     //checked========
     class_<PxMaterial>("PxMaterial")
             .function("release", &PxMaterial::release)
+            .function("setDynamicFriction", &PxMaterial::setDynamicFriction)
+            .function("setStaticFriction", &PxMaterial::setStaticFriction)
+            .function("setRestitution", &PxMaterial::setRestitution)
             .function("setFrictionCombineMode", &PxMaterial::setFrictionCombineMode)
             .function("setRestitutionCombineMode", &PxMaterial::setRestitutionCombineMode);
 
