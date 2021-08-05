@@ -3,8 +3,6 @@
 ## modification, are permitted provided that the following conditions
 ## are met:
 ##  * Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-##  * Redistributions in binary form must reproduce the above copyright
 ##    notice, this list of conditions and the following disclaimer in the
 ##    documentation and/or other materials provided with the distribution.
 ##  * Neither the name of NVIDIA CORPORATION nor the names of its
@@ -26,7 +24,7 @@
 ## Copyright (c) 2018-2019 NVIDIA Corporation. All rights reserved.
 
 SET(EMSCRIPTEN_USE_ASSERTIONS "1")
-SET(EMSCRIPTEN_BASE_OPTIONS "--bind -s MODULARIZE=1 -s EXPORT_NAME=PHYSX -s ALLOW_MEMORY_GROWTH=1")
+SET(EMSCRIPTEN_BASE_OPTIONS "--bind -s EXPORT_ES6=1 -s MODULARIZE=1 -s EXPORT_NAME=PHYSX -s ALLOW_MEMORY_GROWTH=1")
 
 
 SET(LL_SOURCE_DIR ${PHYSX_SOURCE_DIR}/physxwebbindings/src)
