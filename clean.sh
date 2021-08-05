@@ -7,6 +7,3 @@ rm -rf physx/compiler/emscripten-debug/
 rm -rf physx/compiler/emscripten-profile/
 rm -rf physx/compiler/emscripten-release/
 rm -rf physx/include/PxConfig.h
-
-rm -rf cmake-build-debug  
-rm -rf cmake-build-release
