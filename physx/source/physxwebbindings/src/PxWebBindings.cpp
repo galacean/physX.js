@@ -188,15 +188,21 @@ EMSCRIPTEN_BINDINGS(physx) {
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 
     // Global functions
-    // These are generaly system/scene level initialization
+    // These are generally system/scene level initialization
     function("PxCreateFoundation", &PxCreateFoundation, allow_raw_pointers());
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
     function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
     function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers());
+
+    // Debugger
+    function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
+    function("PxDefaultPvdSocketTransportCreate", optional_override(
+            []() {
+                return PxDefaultPvdSocketTransportCreate("127.0.0.1", 5426, 10);
+            }), allow_raw_pointers());
 
 //checked========
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
@@ -225,7 +231,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxTolerancesScale>("PxTolerancesScale").constructor<>()
             .property("speed", &PxTolerancesScale::speed);
 
-    // Define PxVec3, PxQuat and PxTransform as value objects to allow sumerian Vector3 and Quaternion to be used directly without the need to free the memory
+    // Define PxsetCMassLocalPoseec3, PxQuat and PxTransform as value objects to allow sumerian Vector3 and Quaternion to be used directly without the need to free the memory
     value_object<PxVec3>("PxVec3")
             .field("x", &PxVec3::x)
             .field("y", &PxVec3::y)
@@ -247,6 +253,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     enum_<PxIDENTITY>("PxIDENTITY")
             .value("PxIdentity", PxIDENTITY::PxIdentity);
 
+    class_<PxPvdInstrumentationFlags>("PxPvdInstrumentationFlags").constructor<int>();
     enum_<PxPvdInstrumentationFlag::Enum>("PxPvdInstrumentationFlag")
             .value("eALL", PxPvdInstrumentationFlag::Enum::eALL)
             .value("eDEBUG", PxPvdInstrumentationFlag::Enum::eDEBUG)
@@ -441,7 +448,10 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
             .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers());
 
-    class_<PxPvd>("PxPvd");
+    class_<PxPvd>("PxPvd")
+            .function("connect", &PxPvd::connect);
+
+    class_<PxPvdTransport>("PxPvdTransport");
 
     class_<PxShapeFlags>("PxShapeFlags").constructor<int>().function("isSet", &PxShapeFlags::isSet);
     enum_<PxShapeFlag::Enum>("PxShapeFlag")
@@ -497,7 +507,25 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("attachShape", &PxRigidActor::attachShape)
             .function("detachShape", &PxRigidActor::detachShape)
             .function("getGlobalPose", &PxRigidActor::getGlobalPose, allow_raw_pointers())
-            .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers());
+            .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers())
+            .function("getShape", optional_override(
+                    [](PxRigidActor &actor) {
+                        PxShape *shape;
+                        actor.getShapes(&shape, 1);
+                        return shape;
+                    }), allow_raw_pointers())
+            .function("setQueryFilterData", optional_override(
+                    [](PxRigidActor &actor, PxFilterData &data) {
+                        PxShape *shape;
+                        actor.getShapes(&shape, 1);
+                        shape->setQueryFilterData(data);
+                    }))
+            .function("getQueryFilterData", optional_override(
+                    [](PxRigidActor &actor, PxFilterData &data) {
+                        PxShape *shape;
+                        actor.getShapes(&shape, 1);
+                        return shape->getQueryFilterData();
+                    }));;
     //checked========
     class_<PxRigidBody, base<PxRigidActor>>("PxRigidBody")
             .function("setAngularDamping", &PxRigidBody::setAngularDamping)
