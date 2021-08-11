@@ -7,6 +7,8 @@
 using namespace physx;
 using namespace emscripten;
 
+#if PX_DEBUG || PX_PROFILE || PX_CHECKED
+
 class IPvdTransport {
 public:
     virtual bool connect() = 0;
@@ -62,6 +64,9 @@ protected:
     IPvdTransport *_mPvdTransport;
 };
 
+#endif
+
+//----------------------------------------------------------------------------------------------------------------------
 struct PxRaycastCallbackWrapper : public wrapper<PxRaycastCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxRaycastCallbackWrapper)
 
@@ -81,7 +86,7 @@ PxRaycastHit *allocateRaycastHitBuffers(PxU32 nb) {
     return myArray;
 }
 
-//----------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 struct PxSweepCallbackWrapper : public wrapper<PxSweepCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSweepCallbackWrapper)
 
@@ -101,7 +106,7 @@ PxSweepHit *allocateSweepHitBuffers(PxU32 nb) {
     return myArray;
 }
 
-//----------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxQueryFilterCallbackWrapper)
 
@@ -116,8 +121,7 @@ struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
     }
 };
 
-//----------------------------------------------------------------------------------------------------------------------------------
-//checked========
+//----------------------------------------------------------------------------------------------------------------------
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
 
@@ -161,7 +165,6 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
 };
 
-//checked========
 PxFilterFlags DefaultFilterShader(
         PxFilterObjectAttributes attributes0, PxFilterData,
         PxFilterObjectAttributes attributes1, PxFilterData,
@@ -190,7 +193,7 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     return sceneDesc;
 }
 
-//----------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 PxConvexMesh *createConvexMesh(std::vector<PxVec3> &vertices, PxCooking &cooking, PxPhysics &physics) {
     PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vertices.size();
@@ -237,13 +240,33 @@ createTriMesh(int vertices, PxU32 vertCount, int indices, PxU32 indexCount, bool
     return triangleMesh;
 }
 
-//----------------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
+#if PX_DEBUG || PX_PROFILE || PX_CHECKED
     class_<IPvdTransport>("IPvdTransport")
             .allow_subclass<IPvdTransportWrapper>("IPvdTransportWrapper", constructor<>());
 
     class_<ccPvdTransport, base<PxPvdTransport>>("ccPvdTransport")
             .constructor<IPvdTransport *>();
+
+    function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
+    function("PxDefaultPvdSocketTransportCreate", optional_override(
+            []() {
+                return PxDefaultPvdSocketTransportCreate("127.0.0.1", 5426, 10);
+            }), allow_raw_pointers());
+
+    class_<PxPvdInstrumentationFlags>("PxPvdInstrumentationFlags").constructor<int>();
+    enum_<PxPvdInstrumentationFlag::Enum>("PxPvdInstrumentationFlag")
+            .value("eALL", PxPvdInstrumentationFlag::Enum::eALL)
+            .value("eDEBUG", PxPvdInstrumentationFlag::Enum::eDEBUG)
+            .value("ePROFILE", PxPvdInstrumentationFlag::Enum::ePROFILE)
+            .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
+
+    class_<PxPvd>("PxPvd")
+            .function("connect", &PxPvd::connect);
+
+    class_<PxPvdTransport>("PxPvdTransport");
+#endif
 
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 
@@ -256,13 +279,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers());
-
-    // Debugger
-    function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
-    function("PxDefaultPvdSocketTransportCreate", optional_override(
-            []() {
-                return PxDefaultPvdSocketTransportCreate("127.0.0.1", 5426, 10);
-            }), allow_raw_pointers());
 
 //checked========
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
@@ -291,7 +307,8 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxTolerancesScale>("PxTolerancesScale").constructor<>()
             .property("speed", &PxTolerancesScale::speed);
 
-    // Define PxsetCMassLocalPoseec3, PxQuat and PxTransform as value objects to allow sumerian Vector3 and Quaternion to be used directly without the need to free the memory
+    // Define PxsetCMassLocalPoseec3, PxQuat and PxTransform as value objects to allow sumerian Vector3
+    // and Quaternion to be used directly without the need to free the memory
     value_object<PxVec3>("PxVec3")
             .field("x", &PxVec3::x)
             .field("y", &PxVec3::y)
@@ -312,13 +329,6 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     enum_<PxIDENTITY>("PxIDENTITY")
             .value("PxIdentity", PxIDENTITY::PxIdentity);
-
-    class_<PxPvdInstrumentationFlags>("PxPvdInstrumentationFlags").constructor<int>();
-    enum_<PxPvdInstrumentationFlag::Enum>("PxPvdInstrumentationFlag")
-            .value("eALL", PxPvdInstrumentationFlag::Enum::eALL)
-            .value("eDEBUG", PxPvdInstrumentationFlag::Enum::eDEBUG)
-            .value("ePROFILE", PxPvdInstrumentationFlag::Enum::ePROFILE)
-            .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
 
     enum_<PxForceMode::Enum>("PxForceMode")
             .value("eFORCE", PxForceMode::Enum::eFORCE)
@@ -507,11 +517,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createMaterial", &PxPhysics::createMaterial, allow_raw_pointers())
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
             .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers());
-
-    class_<PxPvd>("PxPvd")
-            .function("connect", &PxPvd::connect);
-
-    class_<PxPvdTransport>("PxPvdTransport");
 
     class_<PxShapeFlags>("PxShapeFlags").constructor<int>().function("isSet", &PxShapeFlags::isSet);
     enum_<PxShapeFlag::Enum>("PxShapeFlag")
@@ -821,13 +826,7 @@ EMSCRIPTEN_BINDINGS(physx) {
 
 namespace emscripten {
     namespace internal {
-// Physx uses private destructors all over the place for its own reference counting
-// embind doesn't deal with this well, so we have to override the destructors to keep them private 
-// in the bindings
-// See: https://github.com/emscripten-core/emscripten/issues/5587
-        template<>
-        void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
-        }
+#if PX_DEBUG || PX_PROFILE || PX_CHECKED
 
         template<>
         void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
@@ -835,6 +834,20 @@ namespace emscripten {
 
         template<>
         void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
+        }
+
+        template<>
+        void raw_destructor<PxPvdSceneClient>(PxPvdSceneClient *) { /* do nothing */
+        }
+
+#endif
+
+        // Physx uses private destructors all over the place for its own reference counting
+        // embind doesn't deal with this well, so we have to override the destructors to keep them private
+        // in the bindings
+        // See: https://github.com/emscripten-core/emscripten/issues/5587
+        template<>
+        void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
         }
 
         template<>
@@ -875,10 +888,6 @@ namespace emscripten {
 
         template<>
         void raw_destructor<PxJoint>(PxJoint *) { /* do nothing */
-        }
-
-        template<>
-        void raw_destructor<PxPvdSceneClient>(PxPvdSceneClient *) { /* do nothing */
         }
 
         template<>
