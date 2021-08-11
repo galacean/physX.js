@@ -7,6 +7,60 @@
 using namespace physx;
 using namespace emscripten;
 
+class IPvdTransport {
+public:
+    virtual bool connect() = 0;
+
+    virtual void disconnect() = 0;
+
+    virtual bool isConnected() = 0;
+
+    virtual bool write(const uint8_t *inBytes, uint32_t inLength) = 0;
+
+    virtual ~IPvdTransport() {}
+};
+
+struct IPvdTransportWrapper : public wrapper<IPvdTransport> {
+    EMSCRIPTEN_WRAPPER(IPvdTransportWrapper)
+
+    bool connect() { return call<bool>("connect"); }
+
+    void disconnect() { call<void>("disconnect"); }
+
+    bool isConnected() { return call<bool>("isConnected"); }
+
+    bool write(const uint8_t *inBytes, uint32_t inLength) {
+        return call<bool>("write", int(inBytes), int(inLength));
+    }
+};
+
+class ccPvdTransport : public PxPvdTransport {
+    ccPvdTransport(IPvdTransport *pvdTransport) : _mPvdTransport(pvdTransport) {}
+
+    virtual void unlock() override {}
+
+    virtual void flush() override {}
+
+    virtual void release() override {}
+
+    virtual PxPvdTransport &lock() override { return *this; }
+
+    virtual uint64_t getWrittenDataSize() override { return 0; }
+
+    virtual bool connect() override { return _mPvdTransport->connect(); }
+
+    virtual void disconnect() override { _mPvdTransport->disconnect(); }
+
+    virtual bool isConnected() override { return _mPvdTransport->isConnected(); }
+
+    virtual bool write(const uint8_t *inBytes, uint32_t inLength) override {
+        return _mPvdTransport->write(inBytes, inLength);
+    }
+
+protected:
+    IPvdTransport *_mPvdTransport;
+};
+
 struct PxRaycastCallbackWrapper : public wrapper<PxRaycastCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxRaycastCallbackWrapper)
 
