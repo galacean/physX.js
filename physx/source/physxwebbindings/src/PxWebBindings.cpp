@@ -250,10 +250,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .constructor<IPvdTransport *>();
 
     function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
-    function("PxDefaultPvdSocketTransportCreate", optional_override(
-            []() {
-                return PxDefaultPvdSocketTransportCreate("127.0.0.1", 5426, 10);
-            }), allow_raw_pointers());
 
     class_<PxPvdInstrumentationFlags>("PxPvdInstrumentationFlags").constructor<int>();
     enum_<PxPvdInstrumentationFlag::Enum>("PxPvdInstrumentationFlag")
