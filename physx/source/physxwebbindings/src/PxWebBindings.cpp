@@ -35,6 +35,7 @@ struct IPvdTransportWrapper : public wrapper<IPvdTransport> {
 };
 
 class ccPvdTransport : public PxPvdTransport {
+public:
     ccPvdTransport(IPvdTransport *pvdTransport) : _mPvdTransport(pvdTransport) {}
 
     virtual void unlock() override {}
@@ -238,6 +239,11 @@ createTriMesh(int vertices, PxU32 vertCount, int indices, PxU32 indexCount, bool
 
 //----------------------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
+    class_<IPvdTransport>("IPvdTransport")
+            .allow_subclass<IPvdTransportWrapper>("IPvdTransportWrapper", constructor<>());
+
+    class_<ccPvdTransport, base<PxPvdTransport>>("ccPvdTransport")
+            .constructor<IPvdTransport *>();
 
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 
