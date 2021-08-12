@@ -9,59 +9,28 @@ using namespace emscripten;
 
 #if PX_DEBUG || PX_PROFILE || PX_CHECKED
 
-class IPvdTransport {
-public:
-    virtual bool connect() = 0;
+class PxPvdTransportWrapper : public wrapper<PxPvdTransport> {
+    EMSCRIPTEN_WRAPPER(PxPvdTransportWrapper)
 
-    virtual void disconnect() = 0;
+    void unlock() override {}
 
-    virtual bool isConnected() = 0;
+    void flush() override {}
 
-    virtual bool write(const uint8_t *inBytes, uint32_t inLength) = 0;
+    void release() override {}
 
-    virtual ~IPvdTransport() {}
-};
+    PxPvdTransport &lock() override { return *this; }
 
-struct IPvdTransportWrapper : public wrapper<IPvdTransport> {
-    EMSCRIPTEN_WRAPPER(IPvdTransportWrapper)
+    uint64_t getWrittenDataSize() override { return 0; }
 
-    bool connect() { return call<bool>("connect"); }
+    bool connect() override { return call<bool>("connect"); }
 
-    void disconnect() { call<void>("disconnect"); }
+    void disconnect() override { call<void>("disconnect"); }
 
-    bool isConnected() { return call<bool>("isConnected"); }
+    bool isConnected() override { return call<bool>("isConnected"); }
 
-    bool write(const uint8_t *inBytes, uint32_t inLength) {
+    bool write(const uint8_t *inBytes, uint32_t inLength) override {
         return call<bool>("write", int(inBytes), int(inLength));
     }
-};
-
-class ccPvdTransport : public PxPvdTransport {
-public:
-    ccPvdTransport(IPvdTransport *pvdTransport) : _mPvdTransport(pvdTransport) {}
-
-    virtual void unlock() override {}
-
-    virtual void flush() override {}
-
-    virtual void release() override {}
-
-    virtual PxPvdTransport &lock() override { return *this; }
-
-    virtual uint64_t getWrittenDataSize() override { return 0; }
-
-    virtual bool connect() override { return _mPvdTransport->connect(); }
-
-    virtual void disconnect() override { _mPvdTransport->disconnect(); }
-
-    virtual bool isConnected() override { return _mPvdTransport->isConnected(); }
-
-    virtual bool write(const uint8_t *inBytes, uint32_t inLength) override {
-        return _mPvdTransport->write(inBytes, inLength);
-    }
-
-protected:
-    IPvdTransport *_mPvdTransport;
 };
 
 #endif
@@ -243,11 +212,8 @@ createTriMesh(int vertices, PxU32 vertCount, int indices, PxU32 indexCount, bool
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
 #if PX_DEBUG || PX_PROFILE || PX_CHECKED
-    class_<IPvdTransport>("IPvdTransport")
-            .allow_subclass<IPvdTransportWrapper>("IPvdTransportWrapper", constructor<>());
-
-    class_<ccPvdTransport, base<PxPvdTransport>>("ccPvdTransport")
-            .constructor<IPvdTransport *>();
+    class_<PxPvdTransport>("PxPvdTransport")
+            .allow_subclass<PxPvdTransportWrapper>("PxPvdTransportWrapper", constructor<>());
 
     function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
 
@@ -261,7 +227,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxPvd>("PxPvd")
             .function("connect", &PxPvd::connect);
 
-    class_<PxPvdTransport>("PxPvdTransport");
 #endif
 
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
