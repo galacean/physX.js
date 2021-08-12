@@ -19,7 +19,7 @@ The repo provides simple shell script to compile the wasm and glue Javascript fi
 ./build.sh
 ```
 
-You can modify build.sh to set the number of CPU cores used when compiling and different compile-type, including:
+You can modify build.sh to set the number of CPU cores used when compiling and different compile target, including:
 
 1. Release(default, the smallest size)
 2. Profile
@@ -59,18 +59,18 @@ constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 function("PxCreateFoundation", &PxCreateFoundation, allow_raw_pointers());
 
 class_<PxScene>("PxScene")
-    .function("setGravity", &PxScene::setGravity)
-    .function("getGravity", &PxScene::getGravity);
+.function("setGravity", &PxScene::setGravity)
+.function("getGravity", &PxScene::getGravity);
 
 value_object<PxVec3>("PxVec3")
-    .field("x", &PxVec3::x)
-    .field("y", &PxVec3::y)
-    .field("z", &PxVec3::z);
+.field("x", &PxVec3::x)
+.field("y", &PxVec3::y)
+.field("z", &PxVec3::z);
 
 enum_<PxQueryHitType::Enum>("PxQueryHitType")
-    .value("eNONE", PxQueryHitType::Enum::eNONE)
-    .value("eBLOCK", PxQueryHitType::Enum::eBLOCK)
-    .value("eTOUCH", PxQueryHitType::Enum::eTOUCH);
+.value("eNONE", PxQueryHitType::Enum::eNONE)
+.value("eBLOCK", PxQueryHitType::Enum::eBLOCK)
+.value("eTOUCH", PxQueryHitType::Enum::eTOUCH);
 ```
 
 Special note:
@@ -82,6 +82,75 @@ Special note:
 
 The size of wasm files is depended on the binding APIs, you can only bind the API you need to reduce its size. And the
 size of glue file will not change dramatically when you add more binding APIs.
+
+## Debug
+
+[NVIDIA PhysX Visual Debugger(PVD)](https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxguide/Manual/VisualDebugger.html)
+can be used to debug the physical scene. For minimizing the size of WASM binary, release target don't provide pvd
+related APIs. So if you want to link PhysX to PVD, **use debug, profile or checked instead**. The last but not least, PVD can only be
+installed on Windows.
+
+There are three steps to use PVD:
+
+1. [Downloads](https://developer.nvidia.com/physx-visual-debugger) and install PVD. You can compile PhysX on Windows and
+   run Snippets to test whether it works well.
+2. Install Node on Windows(not in Windows Subsystem Linux) and
+   clone [websockify-js](https://github.com/novnc/websockify-js/tree/8c0d3e990ca794d078d08d9db29043f56560a18b). Run
+   websockify-js by using
+
+```shell
+npm install
+node .\websockify.js SOURCE_ADDR:PORT 127.0.0.1:5425
+```
+
+SOURCE_ADDR:PORT will be used in your WebSocket program. On the other side, 127.0.0.1:5425 is the default TARGET_ADDR:PORT for PVD.
+
+3. Create WebSocket in your code and use it to create the instance of PxPVDTransport.
+
+```JavaScript
+const pvdTransport = PhysX.PxPvdTransport.implement({
+    connect: function () {
+        socket = new WebSocket('ws://SOURCE_ADDR:PORT', ['binary'])
+        socket.onopen = () => {
+            console.log('Connected to PhysX Debugger');
+            queue.forEach(data => socket.send(data));
+            queue = []
+        }
+        socket.onclose = () => {
+        }
+        return true
+    },
+    disconnect: function () {
+        console.log("Socket disconnect")
+    },
+    isConnected: function () {
+    },
+    write: function (inBytes, inLength) {
+        const data = PhysX.HEAPU8.slice(inBytes, inBytes + inLength)
+        if (socket.readyState === WebSocket.OPEN) {
+            if (queue.length) {
+                queue.forEach(data => socket.send(data));
+                queue.length = 0;
+            }
+            socket.send(data);
+        } else {
+            queue.push(data);
+        }
+        return true;
+    }
+})
+
+const gPvd = PhysX.PxCreatePvd(foundation);
+gPvd.connect(pvdTransport, new PhysX.PxPvdInstrumentationFlags(PhysX.PxPvdInstrumentationFlag.eALL.value));
+
+physics = PhysX.PxCreatePhysics(
+    version,
+    foundation,
+    new PhysX.PxTolerancesScale(),
+    true,
+    gPvd
+)
+```
 
 ## Acknowledgement
 
