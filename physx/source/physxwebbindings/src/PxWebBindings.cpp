@@ -9,7 +9,7 @@ using namespace emscripten;
 
 #if PX_DEBUG || PX_PROFILE || PX_CHECKED
 
-class PxPvdTransportWrapper : public wrapper<PxPvdTransport> {
+struct PxPvdTransportWrapper : public wrapper<PxPvdTransport> {
     EMSCRIPTEN_WRAPPER(PxPvdTransportWrapper)
 
     void unlock() override {}
