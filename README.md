@@ -83,12 +83,21 @@ Special note:
 The size of wasm files is depended on the binding APIs, you can only bind the API you need to reduce its size. And the
 size of glue file will not change dramatically when you add more binding APIs.
 
+### Equivalent JavaScript Target
+
+Starting from version 1.38, the default compile target of Emscripten is WebAssembly. You can add ```-s WASM=0``` in
+PhysXWebBindings.cmake to generate the equivalent JS instead. As mentioned in 
+[the official documentation](https://emscripten.org/docs/getting_started/FAQ.html):
+> output should run exactly the same as a WebAssembly build, 
+> but may be larger, start up slower, and run slower, 
+> so it’s better to ship WebAssembly whenever you can.
+
 ## Debug
 
 [NVIDIA PhysX Visual Debugger(PVD)](https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxguide/Manual/VisualDebugger.html)
 can be used to debug the physical scene. For minimizing the size of WASM binary, release target don't provide pvd
-related APIs. So if you want to link PhysX to PVD, **use debug, profile or checked instead**. The last but not least, PVD can only be
-installed on Windows.
+related APIs. So if you want to link PhysX to PVD, **use debug, profile or checked instead**. The last but not least,
+PVD can only be installed on Windows.
 
 There are three steps to use PVD:
 
@@ -103,7 +112,8 @@ npm install
 node .\websockify.js SOURCE_ADDR:PORT 127.0.0.1:5425
 ```
 
-SOURCE_ADDR:PORT will be used in your WebSocket program. On the other side, 127.0.0.1:5425 is the default TARGET_ADDR:PORT for PVD.
+SOURCE_ADDR:PORT will be used in your WebSocket program. On the other side, 127.0.0.1:5425 is the default TARGET_ADDR:
+PORT for PVD.
 
 3. Create WebSocket in your code and use it to create the instance of PxPVDTransport.
 
