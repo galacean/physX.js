@@ -224,10 +224,9 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("ePROFILE", PxPvdInstrumentationFlag::Enum::ePROFILE)
             .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
 
+#endif
     class_<PxPvd>("PxPvd")
             .function("connect", &PxPvd::connect);
-
-#endif
 
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 
@@ -787,12 +786,11 @@ EMSCRIPTEN_BINDINGS(physx) {
 
 namespace emscripten {
     namespace internal {
-#if PX_DEBUG || PX_PROFILE || PX_CHECKED
-
         template<>
         void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
         }
 
+#if PX_DEBUG || PX_PROFILE || PX_CHECKED
         template<>
         void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
         }
