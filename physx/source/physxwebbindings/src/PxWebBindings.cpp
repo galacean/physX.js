@@ -252,7 +252,21 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxPrismaticJointCreate", &PxPrismaticJointCreate, allow_raw_pointers());
     function("PxD6JointCreate", &PxD6JointCreate, allow_raw_pointers());
 
+    enum_<PxConstraintFlag::Enum>("PxConstraintFlag")
+            .value("eBROKEN", PxConstraintFlag::Enum::eBROKEN)
+            .value("ePROJECT_TO_ACTOR0", PxConstraintFlag::Enum::ePROJECT_TO_ACTOR0)
+            .value("ePROJECT_TO_ACTOR1", PxConstraintFlag::Enum::ePROJECT_TO_ACTOR1)
+            .value("ePROJECTION", PxConstraintFlag::Enum::ePROJECTION)
+            .value("eCOLLISION_ENABLED", PxConstraintFlag::Enum::eCOLLISION_ENABLED)
+            .value("eVISUALIZATION", PxConstraintFlag::Enum::eVISUALIZATION)
+            .value("eDRIVE_LIMITS_ARE_FORCES", PxConstraintFlag::Enum::eDRIVE_LIMITS_ARE_FORCES)
+            .value("eIMPROVED_SLERP", PxConstraintFlag::Enum::eIMPROVED_SLERP)
+            .value("eDISABLE_PREPROCESSING", PxConstraintFlag::Enum::eDISABLE_PREPROCESSING)
+            .value("eENABLE_EXTENDED_LIMITS", PxConstraintFlag::Enum::eENABLE_EXTENDED_LIMITS);
+
     class_<PxJoint>("PxJoint")
+            .function("setBreakForce", &PxJoint::setBreakForce)
+            .function("setConstraintFlag", &PxJoint::setConstraintFlag)
             .function("release", &PxJoint::release);
     class_<PxSphericalJoint, base<PxJoint>>("PxSphericalJoint");
     class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint");
