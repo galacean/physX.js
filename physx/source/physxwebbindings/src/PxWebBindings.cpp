@@ -669,19 +669,26 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     /** Geometry **/
     class_<PxGeometry>("PxGeometry");
-    class_<PxBoxGeometry, base<PxGeometry>>(
-            "PxBoxGeometry").constructor<>().constructor<float, float, float>().function("isValid",
-                                                                                         &PxBoxGeometry::isValid).property(
-            "halfExtents", &PxBoxGeometry::halfExtents);
-    class_<PxSphereGeometry, base<PxGeometry>>("PxSphereGeometry").constructor<>().constructor<float>().function(
-            "isValid", &PxSphereGeometry::isValid);
-
-    class_<PxCapsuleGeometry, base<PxGeometry>>("PxCapsuleGeometry").constructor<float, float>();
+    class_<PxBoxGeometry, base<PxGeometry>>("PxBoxGeometry")
+            .constructor<>()
+            .constructor<float, float, float>()
+            .function("isValid", &PxBoxGeometry::isValid)
+            .property("halfExtents", &PxBoxGeometry::halfExtents);
+    class_<PxSphereGeometry, base<PxGeometry>>("PxSphereGeometry")
+            .constructor<>()
+            .constructor<float>()
+            .property("radius", &PxSphereGeometry::radius)
+            .function("isValid", &PxSphereGeometry::isValid);
+    class_<PxCapsuleGeometry, base<PxGeometry>>("PxCapsuleGeometry")
+            .constructor<float, float>()
+            .property("radius", &PxCapsuleGeometry::radius)
+            .property("halfHeight", &PxCapsuleGeometry::halfHeight)
+            .function("isValid", &PxCapsuleGeometry::isValid);
 
     class_<PxTriangleMesh>("PxTriangleMesh")
             .function("release", &PxTriangleMesh::release);
-    class_<PxTriangleMeshGeometry, base<PxGeometry>>(
-            "PxTriangleMeshGeometry").constructor<PxTriangleMesh *, const PxMeshScale &, PxMeshGeometryFlags>();
+    class_<PxTriangleMeshGeometry, base<PxGeometry>>("PxTriangleMeshGeometry")
+            .constructor<PxTriangleMesh *, const PxMeshScale &, PxMeshGeometryFlags>();
 
     class_<PxMeshGeometryFlags>("PxMeshGeometryFlags").constructor<int>();
     enum_<PxMeshGeometryFlag::Enum>("PxMeshGeometryFlag")
