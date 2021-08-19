@@ -473,6 +473,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("getBoxGeometry", &PxShape::getBoxGeometry, allow_raw_pointers())
             .function("getSphereGeometry", &PxShape::getSphereGeometry, allow_raw_pointers())
             .function("getPlaneGeometry", &PxShape::getPlaneGeometry, allow_raw_pointers())
+            .function("getCapsuleGeometry", &PxShape::getCapsuleGeometry, allow_raw_pointers())
             .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
             .function("setQueryFilterData", &PxShape::setQueryFilterData)
             .function("getQueryFilterData", &PxShape::getQueryFilterData, allow_raw_pointers())
