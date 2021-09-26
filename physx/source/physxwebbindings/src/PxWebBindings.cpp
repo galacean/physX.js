@@ -104,10 +104,7 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
         for (PxU32 i = 0; i < nbPairs; i++) {
             const PxContactPair &cp = pairs[i];
 
-            if (cp.flags & (PxContactPairFlag::eREMOVED_SHAPE_0 | PxContactPairFlag::eREMOVED_SHAPE_1))
-                continue;
-
-            if (cp.events & PxPairFlag::eNOTIFY_TOUCH_FOUND) {
+            if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
                 call<void>("onContactBegin", cp.shapes[0], cp.shapes[1]);
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 call<void>("onContactEnd", cp.shapes[0], cp.shapes[1]);
@@ -120,8 +117,6 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onTrigger(PxTriggerPair *pairs, PxU32 count) override {
         for (PxU32 i = 0; i < count; i++) {
             const PxTriggerPair &tp = pairs[i];
-            if (tp.flags & (PxTriggerPairFlag::eREMOVED_SHAPE_TRIGGER | PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
-                continue;
 
             if (tp.status & PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 call<void>("onTriggerBegin", tp.triggerShape, tp.otherShape);
@@ -154,7 +149,7 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     auto *sceneDesc = new PxSceneDesc(scale);
     sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
     sceneDesc->cpuDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
-    sceneDesc->filterShader = DefaultFilterShader;
+    sceneDesc->filterShader = PxDefaultSimulationFilterShader;
     sceneDesc->simulationEventCallback = callback;
     sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
     sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
@@ -239,6 +234,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers());
+    function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
 //checked========
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
@@ -468,6 +464,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("release", &PxShape::release)
             .function("getFlags", &PxShape::getFlags)
             .function("setFlag", &PxShape::setFlag)
+            .function("setFlags", &PxShape::setFlags)
             .function("setLocalPose", &PxShape::setLocalPose)
             .function("setGeometry", &PxShape::setGeometry)
             .function("getBoxGeometry", &PxShape::getBoxGeometry, allow_raw_pointers())
