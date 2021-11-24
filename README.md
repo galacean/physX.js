@@ -30,6 +30,14 @@ After finish running build.sh, there will be a folder call wasm_build which incl
 code used to import the wasm files into the browsers. For convenience, there will also be a link to the binding code in
 the folder, you can modify the code as you wish and re-run build.sh to generate the new wasm related files.
 
+## TypeScript Bindings
+
+Oasis use PhysX as the physics backend. If you want to use PhysX in your own project, you can refer
+to [@oasis-engine/physics-physx](https://github.com/oasis-engine/engine/tree/main/packages/physics-physx)
+Our bindings is designed for multi-backend, you can
+refer [interface](https://github.com/oasis-engine/engine/tree/main/packages/design/src/physics)
+and [docs](https://github.com/oasis-engine/engine/wiki/Physical-system-design) to learn more infos.
+
 ## Detailed explanation
 
 You can ignore this part when you first use this repo and look at it when you need to modify the building system for
@@ -86,10 +94,10 @@ size of glue file will not change dramatically when you add more binding APIs.
 ### Equivalent JavaScript Target
 
 Starting from version 1.38, the default compile target of Emscripten is WebAssembly. You can add ```-s WASM=0``` in
-PhysXWebBindings.cmake to generate the equivalent JS instead. As mentioned in 
+PhysXWebBindings.cmake to generate the equivalent JS instead. As mentioned in
 [the official documentation](https://emscripten.org/docs/getting_started/FAQ.html):
-> output should run exactly the same as a WebAssembly build, 
-> but may be larger, start up slower, and run slower, 
+> output should run exactly the same as a WebAssembly build,
+> but may be larger, start up slower, and run slower,
 > so it’s better to ship WebAssembly whenever you can.
 
 ## Debug

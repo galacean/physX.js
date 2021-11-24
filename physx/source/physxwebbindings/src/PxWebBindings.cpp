@@ -455,11 +455,12 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eENABLE_ENHANCED_DETERMINISM", PxSceneFlag::Enum::eENABLE_ENHANCED_DETERMINISM)
             .value("eENABLE_FRICTION_EVERY_ITERATION", PxSceneFlag::Enum::eENABLE_FRICTION_EVERY_ITERATION);
 
+    /** PhysXPhysicsManager ✅ */
     class_<PxScene>("PxScene")
-            .function("setGravity", &PxScene::setGravity)
+            .function("setGravity", &PxScene::setGravity) // ✅
             .function("getGravity", &PxScene::getGravity)
-            .function("addActor", &PxScene::addActor, allow_raw_pointers())
-            .function("removeActor", &PxScene::removeActor, allow_raw_pointers())
+            .function("addActor", &PxScene::addActor, allow_raw_pointers()) // ✅
+            .function("removeActor", &PxScene::removeActor, allow_raw_pointers()) // ✅
             .function("getScenePvdClient", &PxScene::getScenePvdClient, allow_raw_pointers())
             .function("getActors", &PxScene::getActors, allow_raw_pointers())
             .function("setVisualizationCullingBox", &PxScene::setVisualizationCullingBox)
@@ -479,11 +480,11 @@ EMSCRIPTEN_BINDINGS(physx) {
                         // so let's override.
                         bool fetched = scene.fetchResults(block);
                         return fetched;
-                    }))
+                    })) // ✅
             .function("simulate", optional_override(
                     [](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
                         scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
-                    }))
+                    })) // ✅
             .function("raycast", &PxScene::raycast, allow_raw_pointers())
             .function("raycastAny", optional_override(
                     [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance) {
@@ -495,7 +496,7 @@ EMSCRIPTEN_BINDINGS(physx) {
                        PxRaycastHit &hit, const PxSceneQueryFilterData &filterData) {
                         return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
                                                               PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData);
-                    }))
+                    })) // ✅
             .function("sweep", &PxScene::sweep, allow_raw_pointers())
             .function("sweepAny", optional_override(
                     [](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &unitDir,
@@ -507,7 +508,11 @@ EMSCRIPTEN_BINDINGS(physx) {
                     [](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &unitDir,
                        const PxReal distance, PxSceneQueryFlags outputFlags, PxSweepHit &hit) {
                         return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags, hit);
-                    }));
+                    }))
+            .function("createControllerManager", optional_override(
+                    [](PxScene &scene) {
+                        return PxCreateControllerManager(scene);
+                    }), allow_raw_pointers()); // ✅
 
     class_<PxLocationHit>("PxLocationHit")
             .property("position", &PxLocationHit::position)
@@ -829,23 +834,28 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eENABLE_CCD_MAX_CONTACT_IMPULSE", PxRigidBodyFlag::Enum::eENABLE_CCD_MAX_CONTACT_IMPULSE)
             .value("eRETAIN_ACCELERATIONS", PxRigidBodyFlag::Enum::eRETAIN_ACCELERATIONS);
 
-    /** Geometry **/
+    /** PhysXColliderShape ✅ */
     class_<PxGeometry>("PxGeometry");
+    /** PhysXBoxColliderShape ✅ */
     class_<PxBoxGeometry, base<PxGeometry>>("PxBoxGeometry")
             .constructor<>()
             .constructor<float, float, float>()
             .function("isValid", &PxBoxGeometry::isValid)
-            .property("halfExtents", &PxBoxGeometry::halfExtents);
+            .property("halfExtents", &PxBoxGeometry::halfExtents); // ✅
+    /** PhysXSphereColliderShape ✅ */
     class_<PxSphereGeometry, base<PxGeometry>>("PxSphereGeometry")
             .constructor<>()
             .constructor<float>()
-            .property("radius", &PxSphereGeometry::radius)
+            .property("radius", &PxSphereGeometry::radius) // ✅
             .function("isValid", &PxSphereGeometry::isValid);
+    /** PhysXCapsuleColliderShape ✅ */
     class_<PxCapsuleGeometry, base<PxGeometry>>("PxCapsuleGeometry")
             .constructor<float, float>()
-            .property("radius", &PxCapsuleGeometry::radius)
-            .property("halfHeight", &PxCapsuleGeometry::halfHeight)
+            .property("radius", &PxCapsuleGeometry::radius) // ✅
+            .property("halfHeight", &PxCapsuleGeometry::halfHeight) // ✅
             .function("isValid", &PxCapsuleGeometry::isValid);
+    /** PhysXCapsuleColliderShape ✅ */
+    class_<PxPlaneGeometry, base<PxGeometry>>("PxPlaneGeometry").constructor<>();
 
     class_<PxTriangleMesh>("PxTriangleMesh")
             .function("release", &PxTriangleMesh::release);
@@ -855,8 +865,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxMeshGeometryFlags>("PxMeshGeometryFlags").constructor<int>();
     enum_<PxMeshGeometryFlag::Enum>("PxMeshGeometryFlag")
             .value("eDOUBLE_SIDED", PxMeshGeometryFlag::Enum::eDOUBLE_SIDED);
-
-    class_<PxPlaneGeometry, base<PxGeometry>>("PxPlaneGeometry").constructor<>();
 
     class_<PxConvexMesh>("PxConvexMesh")
             .function("release", &PxConvexMesh::release);
@@ -869,50 +877,85 @@ EMSCRIPTEN_BINDINGS(physx) {
     enum_<PxConvexMeshGeometryFlag::Enum>("PxConvexMeshGeometryFlag")
             .value("eTIGHT_BOUNDS", PxConvexMeshGeometryFlag::Enum::eTIGHT_BOUNDS);
 
-    /** End Geometry **/
-
     class_<PxPlane>("PxPlane").constructor<float, float, float, float>();
 
-    /** Character Controller **/
-
-    function("PxCreateControllerManager", &PxCreateControllerManager, allow_raw_pointers());
-
-    enum_<PxControllerShapeType::Enum>("PxControllerShapeType")
-            .value("eBOX", PxControllerShapeType::Enum::eBOX)
-            .value("eCAPSULE", PxControllerShapeType::Enum::eCAPSULE)
-            .value("eFORCE_DWORD", PxControllerShapeType::Enum::eFORCE_DWORD);
-
-    enum_<PxCapsuleClimbingMode::Enum>("PxCapsuleClimbingMode")
-            .value("eEASY", PxCapsuleClimbingMode::Enum::eEASY)
-            .value("eCONSTRAINED", PxCapsuleClimbingMode::Enum::eCONSTRAINED)
-            .value("eLAST", PxCapsuleClimbingMode::Enum::eLAST);
-
-    enum_<PxControllerNonWalkableMode::Enum>("PxControllerNonWalkableMode")
-            .value("ePREVENT_CLIMBING", PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING)
-            .value("ePREVENT_CLIMBING_AND_FORCE_SLIDING",
-                   PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING_AND_FORCE_SLIDING);
-
+    /** PhysXCharacterControllerManager ✅ */
     class_<PxControllerManager>("PxControllerManager")
-            .function("createController", &PxControllerManager::createController, allow_raw_pointers())
-            .function("setTessellation", &PxControllerManager::setTessellation)
-            .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)
-            .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps)
+            .function("purgeControllers", &PxControllerManager::purgeControllers) // ✅
+            .function("createController", &PxControllerManager::createController, allow_raw_pointers()) // ✅
+            .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers()) // ✅
+            .function("setTessellation", &PxControllerManager::setTessellation) // ✅
+            .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule) // ✅
+            .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps) // ✅
             .function("setPreventVerticalSlidingAgainstCeiling",
-                      &PxControllerManager::setPreventVerticalSlidingAgainstCeiling)
-            .function("shiftOrigin", &PxControllerManager::shiftOrigin);
-
+                      &PxControllerManager::setPreventVerticalSlidingAgainstCeiling) // ✅
+            .function("shiftOrigin", &PxControllerManager::shiftOrigin); // ✅
+    /** PhysXCharacterControllerDesc ✅ */
+    class_<PxControllerDesc>("PxControllerDesc")
+            .function("isValid", &PxControllerDesc::isValid)
+            .function("getType", &PxControllerDesc::getType) // ✅
+            .property("position", &PxControllerDesc::position) // ✅
+            .property("upDirection", &PxControllerDesc::upDirection) // ✅
+            .property("slopeLimit", &PxControllerDesc::slopeLimit) // ✅
+            .property("invisibleWallHeight", &PxControllerDesc::invisibleWallHeight) // ✅
+            .property("maxJumpHeight", &PxControllerDesc::maxJumpHeight) // ✅
+            .property("contactOffset", &PxControllerDesc::contactOffset) // ✅
+            .property("stepOffset", &PxControllerDesc::stepOffset) // ✅
+            .property("density", &PxControllerDesc::density) // ✅
+            .property("scaleCoeff", &PxControllerDesc::scaleCoeff) // ✅
+            .property("volumeGrowth", &PxControllerDesc::volumeGrowth) // ✅
+            .function("setNonWalkableMode", optional_override(
+                    [](PxControllerDesc &desc, int mode) {
+                        return desc.nonWalkableMode = PxControllerNonWalkableMode::Enum(mode);
+                    })) // ✅
+            .function("setMaterial", optional_override(
+                    [](PxControllerDesc &desc, PxMaterial *material) {
+                        return desc.material = material;
+                    }), allow_raw_pointers()) // ✅
+            .property("registerDeletionListener", &PxControllerDesc::registerDeletionListener); // ✅
+    /** PhysXCapsuleCharacterControllerDesc ✅ */
+    class_<PxCapsuleControllerDesc, base<PxControllerDesc>>("PxCapsuleControllerDesc")
+            .constructor<>()
+            .function("isValid", &PxCapsuleControllerDesc::isValid)
+            .function("setToDefault", &PxCapsuleControllerDesc::setToDefault) // ✅
+            .property("radius", &PxCapsuleControllerDesc::radius) // ✅
+            .property("height", &PxCapsuleControllerDesc::height) // ✅
+            .function("setClimbingMode", optional_override(
+                    [](PxCapsuleControllerDesc &desc, int mode) {
+                        return desc.climbingMode = PxCapsuleClimbingMode::Enum(mode);
+                    })); // ✅
+    /** PhysXCharacterController ✅ */
     class_<PxController>("PxController")
             .function("release", &PxController::release)
-            .function("move", &PxController::move, allow_raw_pointers())
-            .function("setPosition", &PxController::setPosition)
+            .function("isSetControllerCollisionFlag", optional_override(
+                    [](PxController &controller, int flags, int flag) {
+                        return PxControllerCollisionFlags(flags).isSet(PxControllerCollisionFlag::Enum(flag));
+                    })) // ✅
+            .function("move", optional_override(
+                    [](PxController &controller, const PxVec3 &disp, PxF32 minDist, PxF32 elapsedTime) {
+                        return controller.move(disp, minDist, elapsedTime, PxControllerFilters());
+                    })) // ✅
+            .function("setPosition", &PxController::setPosition) // ✅
             .function("getPosition", &PxController::getPosition)
+            .function("setFootPosition", &PxController::setFootPosition) // ✅
+            .function("setStepOffset", &PxController::setStepOffset) // ✅
+            .function("setNonWalkableMode", optional_override(
+                    [](PxController &controller, int mode) {
+                        return controller.setNonWalkableMode(PxControllerNonWalkableMode::Enum(mode));
+                    })) // ✅
+            .function("setContactOffset", &PxController::setContactOffset) // ✅
+            .function("setUpDirection", &PxController::setUpDirection) // ✅
+            .function("setSlopeLimit", &PxController::setSlopeLimit) // ✅
+            .function("invalidateCache", &PxController::invalidateCache) // ✅
+            .function("resize", &PxController::resize) // ✅
+            .function("invalidateCache", &PxController::invalidateCache) // ✅
             .function("setQueryFilterData", optional_override(
                     [](PxController &ctrl, PxFilterData &data) {
                         PxRigidDynamic *actor = ctrl.getActor();
                         PxShape *shape;
                         actor->getShapes(&shape, 1);
                         shape->setQueryFilterData(data);
-                    }))
+                    })) // ✅
             .function("getQueryFilterData", optional_override(
                     [](PxController &ctrl, PxFilterData &data) {
                         PxRigidDynamic *actor = ctrl.getActor();
@@ -920,50 +963,14 @@ EMSCRIPTEN_BINDINGS(physx) {
                         actor->getShapes(&shape, 1);
                         return shape->getQueryFilterData();
                     }));
-
-    class_<PxControllerDesc>("PxControllerDesc")
-            .function("isValid", &PxControllerDesc::isValid)
-            .function("getType", &PxControllerDesc::getType)
-            .property("position", &PxControllerDesc::position)
-            .property("upDirection", &PxControllerDesc::upDirection)
-            .property("slopeLimit", &PxControllerDesc::slopeLimit)
-            .property("invisibleWallHeight", &PxControllerDesc::invisibleWallHeight)
-            .property("maxJumpHeight", &PxControllerDesc::maxJumpHeight)
-            .property("contactOffset", &PxControllerDesc::contactOffset)
-            .property("stepOffset", &PxControllerDesc::stepOffset)
-            .property("density", &PxControllerDesc::density)
-            .property("scaleCoeff", &PxControllerDesc::scaleCoeff)
-            .property("volumeGrowth", &PxControllerDesc::volumeGrowth)
-            .property("nonWalkableMode", &PxControllerDesc::nonWalkableMode)
-                    // `material` property doesn't work as-is so we create a setMaterial function
-            .function("setMaterial", optional_override(
-                    [](PxControllerDesc &desc, PxMaterial *material) {
-                        return desc.material = material;
-                    }), allow_raw_pointers());
-
-    class_<PxCapsuleControllerDesc, base<PxControllerDesc>>("PxCapsuleControllerDesc")
-            .constructor<>()
-            .function("isValid", &PxCapsuleControllerDesc::isValid)
-            .property("radius", &PxCapsuleControllerDesc::radius)
-            .property("height", &PxCapsuleControllerDesc::height)
-            .property("climbingMode", &PxCapsuleControllerDesc::climbingMode);
-
-    class_<PxObstacleContext>("PxObstacleContext");
-
-    class_<PxControllerFilters>("PxControllerFilters")
-            .constructor<const PxFilterData *, PxQueryFilterCallback *, PxControllerFilterCallback *>()
-            .property("mFilterFlags", &PxControllerFilters::mFilterFlags);
-
-    class_<PxControllerFilterCallback>("ControllerFilterCallback");
-
-    class_<PxControllerCollisionFlags>("ControllerCollisionFlags")
-            .constructor<PxU32>()
-            .function("isSet", &PxControllerCollisionFlags::isSet);
-
-    enum_<PxControllerCollisionFlag::Enum>("PxControllerCollisionFlag")
-            .value("eCOLLISION_SIDES", PxControllerCollisionFlag::Enum::eCOLLISION_SIDES)
-            .value("eCOLLISION_UP", PxControllerCollisionFlag::Enum::eCOLLISION_UP)
-            .value("eCOLLISION_DOWN", PxControllerCollisionFlag::Enum::eCOLLISION_DOWN);
+    /** PhysXCapsuleCharacterController ✅ */
+    class_<PxCapsuleController, base<PxController>>("PxCapsuleController")
+            .function("setRadius", &PxCapsuleController::setRadius) // ✅
+            .function("setHeight", &PxCapsuleController::setHeight) // ✅
+            .function("setClimbingMode", optional_override(
+                    [](PxCapsuleController &controller, int mode) {
+                        return controller.setClimbingMode(PxCapsuleClimbingMode::Enum(mode));
+                    })); // ✅
 }
 
 
@@ -1046,6 +1053,10 @@ namespace emscripten {
 
         template<>
         void raw_destructor<PxController>(PxController *) { /* do nothing */
+        }
+
+        template<>
+        void raw_destructor<PxCapsuleController>(PxCapsuleController *) { /* do nothing */
         }
 
         template<>
