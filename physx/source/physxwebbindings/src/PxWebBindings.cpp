@@ -158,7 +158,7 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-PxConvexMesh *createConvexMesh(std::vector<PxVec3> &vertices, PxCooking &cooking, PxPhysics &physics) {
+PxConvexMesh *createConvexMesh(std::vector <PxVec3> &vertices, PxCooking &cooking, PxPhysics &physics) {
     PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vertices.size();
     convexDesc.points.stride = sizeof(PxVec3);
@@ -240,37 +240,151 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
             .allow_subclass<PxSimulationEventCallbackWrapper>("PxSimulationEventCallbackWrapper");
 
-    // Joints
-    function("PxFixedJointCreate", &PxFixedJointCreate, allow_raw_pointers());
-    function("PxRevoluteJointCreate", &PxRevoluteJointCreate, allow_raw_pointers());
-    function("PxSphericalJointCreate", &PxSphericalJointCreate, allow_raw_pointers());
-    function("PxDistanceJointCreate", &PxDistanceJointCreate, allow_raw_pointers());
-    function("PxPrismaticJointCreate", &PxPrismaticJointCreate, allow_raw_pointers());
-    function("PxD6JointCreate", &PxD6JointCreate, allow_raw_pointers());
-
-    enum_<PxConstraintFlag::Enum>("PxConstraintFlag")
-            .value("eBROKEN", PxConstraintFlag::Enum::eBROKEN)
-            .value("ePROJECT_TO_ACTOR0", PxConstraintFlag::Enum::ePROJECT_TO_ACTOR0)
-            .value("ePROJECT_TO_ACTOR1", PxConstraintFlag::Enum::ePROJECT_TO_ACTOR1)
-            .value("ePROJECTION", PxConstraintFlag::Enum::ePROJECTION)
-            .value("eCOLLISION_ENABLED", PxConstraintFlag::Enum::eCOLLISION_ENABLED)
-            .value("eVISUALIZATION", PxConstraintFlag::Enum::eVISUALIZATION)
-            .value("eDRIVE_LIMITS_ARE_FORCES", PxConstraintFlag::Enum::eDRIVE_LIMITS_ARE_FORCES)
-            .value("eIMPROVED_SLERP", PxConstraintFlag::Enum::eIMPROVED_SLERP)
-            .value("eDISABLE_PREPROCESSING", PxConstraintFlag::Enum::eDISABLE_PREPROCESSING)
-            .value("eENABLE_EXTENDED_LIMITS", PxConstraintFlag::Enum::eENABLE_EXTENDED_LIMITS);
-
+    /* PhysXJoint ✅ */
     class_<PxJoint>("PxJoint")
-            .function("setBreakForce", &PxJoint::setBreakForce)
-            .function("setConstraintFlag", &PxJoint::setConstraintFlag)
+            .function("setActors", &PxJoint::setActors, allow_raw_pointers())// ✅
+            .function("setLocalPose", optional_override(
+                    [](PxJoint &joint, int actor, PxVec3 position, PxQuat rotation) {
+                        joint.setLocalPose(PxJointActorIndex::Enum(actor), PxTransform(position, rotation));
+                    }))// ✅
+            .function("setBreakForce", &PxJoint::setBreakForce)// ✅
+            .function("setConstraintFlag", optional_override(
+                    [](PxJoint &joint, int flag, bool value) {
+                        joint.setConstraintFlag(PxConstraintFlag::Enum(flag), value);
+                    }))// ✅
+            .function("setInvMassScale0", &PxJoint::setInvMassScale0)// ✅
+            .function("setInvInertiaScale0", &PxJoint::setInvInertiaScale0)// ✅
+            .function("setInvMassScale1", &PxJoint::setInvMassScale1)// ✅
+            .function("setInvInertiaScale1", &PxJoint::setInvInertiaScale1)// ✅
             .function("release", &PxJoint::release);
-    class_<PxSphericalJoint, base<PxJoint>>("PxSphericalJoint");
-    class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint");
-    class_<PxFixedJoint, base<PxJoint>>("PxFixedJoint");
-    class_<PxDistanceJoint, base<PxJoint>>("PxDistanceJoint");
-    class_<PxPrismaticJoint, base<PxJoint>>("PxPrismaticJoint");
-    class_<PxD6Joint, base<PxJoint>>("PxD6Joint");
-
+    /* PhysXFixedJoint ✅ */
+    class_<PxFixedJoint, base<PxJoint>>("PxFixedJoint")
+            .function("setProjectionLinearTolerance", &PxFixedJoint::setProjectionLinearTolerance)// ✅
+            .function("setProjectionAngularTolerance", &PxFixedJoint::setProjectionAngularTolerance); // ✅
+    /* PhysXSphericalJoint ✅ */
+    class_<PxSphericalJoint, base<PxJoint>>("PxSphericalJoint")
+            .function("setHardLimitCone", optional_override(
+                    [](PxSphericalJoint &joint, PxReal yLimitAngle, PxReal zLimitAngle, PxReal contactDist) {
+                        joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, contactDist));
+                    }))// ✅
+            .function("setSoftLimitCone", optional_override(
+                    [](PxSphericalJoint &joint, PxReal yLimitAngle, PxReal zLimitAngle, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, PxSpring(stiffness, damping)));
+                    }))// ✅
+            .function("setSphericalJointFlag", optional_override(
+                    [](PxSphericalJoint &joint, PxReal flag, bool value) {
+                        joint.setSphericalJointFlag(PxSphericalJointFlag::Enum(flag), value);
+                    }))// ✅
+            .function("setProjectionLinearTolerance", &PxSphericalJoint::setProjectionLinearTolerance);// ✅
+    /* PhysXHingeJoint ✅ */
+    class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint")
+            .function("setHardLimit", optional_override(
+                    [](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                        joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
+                    }))// ✅
+            .function("setSoftLimit", optional_override(
+                    [](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setDriveVelocity", &PxRevoluteJoint::setDriveVelocity)// ✅
+            .function("setDriveForceLimit", &PxRevoluteJoint::setDriveForceLimit)// ✅
+            .function("setDriveGearRatio", &PxRevoluteJoint::setDriveGearRatio)// ✅
+            .function("setRevoluteJointFlag", optional_override(
+                    [](PxRevoluteJoint &joint, PxReal flag, bool value) {
+                        joint.setRevoluteJointFlag(PxRevoluteJointFlag::Enum(flag), value);
+                    }))// ✅
+            .function("setProjectionLinearTolerance", &PxRevoluteJoint::setProjectionLinearTolerance)// ✅
+            .function("setProjectionAngularTolerance", &PxRevoluteJoint::setProjectionAngularTolerance);// ✅
+    /* PhysXSpringJoint ✅ */
+    class_<PxDistanceJoint, base<PxJoint>>("PxDistanceJoint")
+            .function("setMinDistance", &PxDistanceJoint::setMinDistance)// ✅
+            .function("setMaxDistance", &PxDistanceJoint::setMaxDistance)// ✅
+            .function("setTolerance", &PxDistanceJoint::setTolerance)// ✅
+            .function("setStiffness", &PxDistanceJoint::setStiffness)// ✅
+            .function("setDamping", &PxDistanceJoint::setDamping)// ✅
+            .function("setDistanceJointFlag", optional_override(
+                    [](PxDistanceJoint &joint, PxReal flag, bool value) {
+                        joint.setDistanceJointFlag(PxDistanceJointFlag::Enum(flag), value);
+                    }));// ✅
+    /* PhysXTranslationalJoint ✅ */
+    class_<PxPrismaticJoint, base<PxJoint>>("PxPrismaticJoint")
+            .function("setHardLimit", optional_override(
+                    [](PxPrismaticJoint &joint, PxTolerancesScale &scale, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                        joint.setLimit(PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
+                    }))// ✅
+            .function("setSoftLimit", optional_override(
+                    [](PxPrismaticJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setLimit(PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setPrismaticJointFlag", optional_override(
+                    [](PxPrismaticJoint &joint, PxReal flag, bool value) {
+                        joint.setPrismaticJointFlag(PxPrismaticJointFlag::Enum(flag), value);
+                    }))// ✅
+            .function("setProjectionLinearTolerance", &PxPrismaticJoint::setProjectionLinearTolerance)// ✅
+            .function("setProjectionAngularTolerance", &PxPrismaticJoint::setProjectionAngularTolerance);// ✅
+    /* PhysXConfigurableJoint ✅ */
+    class_<PxD6Joint, base<PxJoint>>("PxD6Joint")
+            .function("setMotion", optional_override(
+                    [](PxD6Joint &joint, int axis, int type) {
+                        joint.setMotion(PxD6Axis::Enum(axis), PxD6Motion::Enum(type));
+                    }))// ✅
+            .function("setHardDistanceLimit", optional_override(
+                    [](PxD6Joint &joint, PxTolerancesScale &scale, PxReal extent, PxReal contactDist) {
+                        joint.setDistanceLimit(PxJointLinearLimit(scale, extent, contactDist));
+                    }))// ✅
+            .function("setSoftDistanceLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal extent, PxReal stiffness, PxReal damping) {
+                        joint.setDistanceLimit(PxJointLinearLimit(extent, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setHardLinearLimit", optional_override(
+                    [](PxD6Joint &joint, int axis, PxTolerancesScale &scale, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                        joint.setLinearLimit(PxD6Axis::Enum(axis), PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
+                    }))// ✅
+            .function("setSoftLinearLimit", optional_override(
+                    [](PxD6Joint &joint, int axis, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness, PxReal damping) {
+                        joint.setLinearLimit(PxD6Axis::Enum(axis), PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setHardTwistLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                        joint.setTwistLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
+                    }))// ✅
+            .function("setSoftTwistLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setTwistLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setHardSwingLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                        joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, contactDist));
+                    }))// ✅
+            .function("setSoftSwingLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setHardPyramidSwingLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax, PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal contactDist) {
+                        joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin, zLimitAngleMax, contactDist));
+                    }))// ✅
+            .function("setSoftPyramidSwingLimit", optional_override(
+                    [](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax, PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal stiffness,
+                       PxReal damping) {
+                        joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin, zLimitAngleMax, PxSpring(stiffness, damping)));
+                    })) // ✅
+            .function("setDrive", optional_override(
+                    [](PxD6Joint &joint, int index, PxReal driveStiffness, PxReal driveDamping, PxReal driveForceLimit) {
+                        joint.setDrive(PxD6Drive::Enum(index), PxD6JointDrive(driveStiffness, driveDamping, driveForceLimit));
+                    }))// ✅
+            .function("setDrivePosition", optional_override(
+                    [](PxD6Joint &joint, PxVec3 pos, PxQuat rot) {
+                        joint.setDrivePosition(PxTransform(pos, rot));
+                    }))// ✅
+            .function("setDriveVelocity", &PxD6Joint::setDriveVelocity)// ✅
+            .function("setProjectionLinearTolerance", &PxD6Joint::setProjectionLinearTolerance)// ✅
+            .function("setProjectionAngularTolerance", &PxD6Joint::setProjectionAngularTolerance);// ✅
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
@@ -283,7 +397,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .field("x", &PxVec3::x)
             .field("y", &PxVec3::y)
             .field("z", &PxVec3::z);
-    register_vector<PxVec3>("PxVec3Vector");
+    register_vector < PxVec3 > ("PxVec3Vector");
     value_object<PxQuat>("PxQuat")
             .field("x", &PxQuat::x)
             .field("y", &PxQuat::y)
@@ -457,7 +571,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("setFrictionCombineMode", &PxMaterial::setFrictionCombineMode)
             .function("setRestitutionCombineMode", &PxMaterial::setRestitutionCombineMode);
 
-    register_vector<PxMaterial *>("VectorPxMaterial");
+    register_vector < PxMaterial * > ("VectorPxMaterial");
     // setMaterials has 'PxMaterial**' as an input, which is not representable with embind
     // This is overrided to use std::vector<PxMaterial*>
     class_<PxShape>("PxShape")
@@ -479,6 +593,7 @@ EMSCRIPTEN_BINDINGS(physx) {
                         return shape.setMaterials(materials.data(), materials.size());
                     }));
 
+    /** PhysXPhysics ✅ */
     class_<PxPhysics>("PxPhysics")
             .function("release", &PxPhysics::release)
             .function("getTolerancesScale", &PxPhysics::getTolerancesScale)
@@ -488,7 +603,43 @@ EMSCRIPTEN_BINDINGS(physx) {
                               &PxPhysics::createShape), allow_raw_pointers())
             .function("createMaterial", &PxPhysics::createMaterial, allow_raw_pointers())
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
-            .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers());
+            .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers())
+            .function("createFixedJoint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                            PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()) // ✅
+            .function("createRevoluteJoint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                       PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()) // ✅
+            .function("createSphericalJoint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                       PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxSphericalJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()) // ✅
+            .function("createDistanceJoint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                       PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()) // ✅
+            .function("createPrismaticJoint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                       PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()) // ✅
+            .function("createD6Joint", optional_override(
+                    [](PxPhysics &physics, PxRigidActor* actor0, const PxVec3& localPosition0, const PxQuat& localRotation0,
+                       PxRigidActor* actor1, const PxVec3& localPosition1, const PxQuat& localRotation1) {
+                        return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                  actor1, PxTransform(localPosition1, localRotation1));
+                    }), allow_raw_pointers()); // ✅
 
     class_<PxShapeFlags>("PxShapeFlags").constructor<int>().function("isSet", &PxShapeFlags::isSet);
     enum_<PxShapeFlag::Enum>("PxShapeFlag")
@@ -505,7 +656,7 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     class_<PxCooking>("PxCooking")
             .function("createConvexMesh", optional_override(
-                    [](PxCooking &cooking, std::vector<PxVec3> &vertices, PxPhysics &physics) {
+                    [](PxCooking &cooking, std::vector <PxVec3> &vertices, PxPhysics &physics) {
                         return createConvexMesh(vertices, cooking, physics);
                     }), allow_raw_pointers())
             .function("createConvexMeshFromBuffer", optional_override(
