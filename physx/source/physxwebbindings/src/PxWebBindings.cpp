@@ -509,6 +509,16 @@ EMSCRIPTEN_BINDINGS(physx) {
                        const PxReal distance, PxSceneQueryFlags outputFlags, PxSweepHit &hit) {
                         return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags, hit);
                     }))
+            .function("addController", optional_override(
+                    [](PxScene &scene, PxController &controller) {
+                        auto actor = controller.getActor();
+                        scene.addActor(*actor);
+                    }))
+            .function("removeController", optional_override(
+                    [](PxScene &scene, PxController &controller) {
+                        auto actor = controller.getActor();
+                        scene.removeActor(*actor);
+                    }))
             .function("createControllerManager", optional_override(
                     [](PxScene &scene) {
                         return PxCreateControllerManager(scene);
@@ -589,6 +599,8 @@ EMSCRIPTEN_BINDINGS(physx) {
     // This is overrided to use std::vector<PxMaterial*>
     class_<PxShape>("PxShape")
             .function("release", &PxShape::release)
+            .function("setContactOffset", &PxShape::setContactOffset)
+            .function("getContactOffset", &PxShape::getContactOffset)
             .function("getFlags", &PxShape::getFlags)
             .function("setFlag", &PxShape::setFlag)
             .function("setFlags", &PxShape::setFlags)
@@ -878,7 +890,18 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eTIGHT_BOUNDS", PxConvexMeshGeometryFlag::Enum::eTIGHT_BOUNDS);
 
     class_<PxPlane>("PxPlane").constructor<float, float, float, float>();
-
+    
+    enum_<PxControllerShapeType::Enum>("PxControllerShapeType")
+            .value("eBOX", PxControllerShapeType::Enum::eBOX)
+            .value("eCAPSULE", PxControllerShapeType::Enum::eCAPSULE);
+    enum_<PxControllerNonWalkableMode::Enum>("PxControllerNonWalkableMode")
+            .value("ePREVENT_CLIMBING", PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING)
+            .value("ePREVENT_CLIMBING_AND_FORCE_SLIDING", PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING_AND_FORCE_SLIDING);
+    enum_<PxControllerCollisionFlag::Enum>("PxControllerCollisionFlag")
+            .value("eCOLLISION_SIDES", PxControllerCollisionFlag::Enum::eCOLLISION_SIDES)
+            .value("eCOLLISION_UP", PxControllerCollisionFlag::Enum::eCOLLISION_UP)
+            .value("eCOLLISION_DOWN", PxControllerCollisionFlag::Enum::eCOLLISION_DOWN);
+    class_<PxControllerCollisionFlags>("PxControllerCollisionFlags").constructor<int>().function("isSet", &PxControllerCollisionFlags::isSet);
     /** PhysXCharacterControllerManager ✅ */
     class_<PxControllerManager>("PxControllerManager")
             .function("purgeControllers", &PxControllerManager::purgeControllers) // ✅
@@ -928,11 +951,11 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxController>("PxController")
             .function("release", &PxController::release)
             .function("isSetControllerCollisionFlag", optional_override(
-                    [](PxController &controller, int flags, int flag) {
-                        return PxControllerCollisionFlags(flags).isSet(PxControllerCollisionFlag::Enum(flag));
+                    [](PxController &controller, PxControllerCollisionFlags& flags, int flag) {
+                        return flags.isSet(PxControllerCollisionFlag::Enum(flag));
                     })) // ✅
             .function("move", optional_override(
-                    [](PxController &controller, const PxVec3 &disp, PxF32 minDist, PxF32 elapsedTime) {
+                    [](PxController &controller, const PxVec3 &disp, PxF32 minDist, PxF32 elapsedTime)->uint32_t {
                         return controller.move(disp, minDist, elapsedTime, PxControllerFilters());
                     })) // ✅
             .function("setPosition", &PxController::setPosition) // ✅
@@ -962,15 +985,28 @@ EMSCRIPTEN_BINDINGS(physx) {
                         PxShape *shape;
                         actor->getShapes(&shape, 1);
                         return shape->getQueryFilterData();
-                    }));
-    /** PhysXCapsuleCharacterController ✅ */
-    class_<PxCapsuleController, base<PxController>>("PxCapsuleController")
-            .function("setRadius", &PxCapsuleController::setRadius) // ✅
-            .function("setHeight", &PxCapsuleController::setHeight) // ✅
+                    }))
+    /** PxCapsuleController ✅ */
+            .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
+                                                         static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
+                                                     })) // ✅
+            .function("setHeight", optional_override([](PxController &ctrl, PxF32 height) {
+                                                         static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
+                                                     })) // ✅
             .function("setClimbingMode", optional_override(
-                    [](PxCapsuleController &controller, int mode) {
-                        return controller.setClimbingMode(PxCapsuleClimbingMode::Enum(mode));
-                    })); // ✅
+                    [](PxController &ctrl, int mode) {
+                        return static_cast<PxCapsuleController *>(&ctrl)->setClimbingMode(PxCapsuleClimbingMode::Enum(mode));
+                    })) // ✅
+    /** PxBoxController ✅ */
+            .function("setHalfHeight", optional_override([](PxController &ctrl, PxF32 radius) {
+                                                         static_cast<PxBoxController *>(&ctrl)->setHalfHeight(radius);
+                                                     })) // ✅
+            .function("setHalfSideExtent", optional_override([](PxController &ctrl, PxF32 height) {
+                                                         static_cast<PxBoxController *>(&ctrl)->setHalfSideExtent(height);
+                                                     })) // ✅
+            .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
+                                                         static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
+            })); // ✅
 }
 
 
