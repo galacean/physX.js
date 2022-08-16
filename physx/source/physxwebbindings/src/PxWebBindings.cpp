@@ -148,7 +148,7 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     auto *sceneDesc = new PxSceneDesc(scale);
     sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
     sceneDesc->cpuDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
-    sceneDesc->filterShader = PxDefaultSimulationFilterShader;
+    sceneDesc->filterShader = DefaultFilterShader;
     sceneDesc->simulationEventCallback = callback;
     sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
     sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
