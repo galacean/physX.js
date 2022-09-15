@@ -142,8 +142,6 @@ PxFilterFlags DefaultFilterShader(
     return PxFilterFlag::eDEFAULT;
 }
 
-// TODO: Getting the  global PxDefaultSimulationFilterShader into javascript
-// is problematic, so let's provide this custom factory function for now
 PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
     auto *sceneDesc = new PxSceneDesc(scale);
     sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
@@ -154,53 +152,6 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
     sceneDesc->flags |= PxSceneFlag::eENABLE_CCD;
     return sceneDesc;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-PxConvexMesh *createConvexMesh(std::vector<PxVec3> &vertices, PxCooking &cooking, PxPhysics &physics) {
-    PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vertices.size();
-    convexDesc.points.stride = sizeof(PxVec3);
-    convexDesc.points.data = vertices.data();
-    convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
-
-    return convexMesh;
-}
-
-PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCooking &cooking, PxPhysics &physics) {
-    PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vertCount;
-    convexDesc.points.stride = sizeof(PxVec3);
-    convexDesc.points.data = (PxVec3 *) vertices;
-    convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
-
-    return convexMesh;
-}
-
-PxTriangleMesh *
-createTriMesh(int vertices, PxU32 vertCount, int indices, PxU32 indexCount, bool isU16, PxCooking &cooking,
-              PxPhysics &physics) {
-    PxTriangleMeshDesc meshDesc;
-    meshDesc.points.count = vertCount;
-    meshDesc.points.stride = sizeof(PxVec3);
-    meshDesc.points.data = (PxVec3 *) vertices;
-
-    meshDesc.triangles.count = indexCount;
-    if (isU16) {
-        meshDesc.triangles.stride = 3 * sizeof(PxU16);
-        meshDesc.triangles.data = (PxU16 *) indices;
-        meshDesc.flags = PxMeshFlag::e16_BIT_INDICES;
-    } else {
-        meshDesc.triangles.stride = 3 * sizeof(PxU32);
-        meshDesc.triangles.data = (PxU32 *) indices;
-    }
-
-    PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback());
-    return triangleMesh;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -230,7 +181,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
     function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
-    function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers());
     function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
@@ -685,26 +635,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxErrorCallback>("PxErrorCallback");
     class_<PxDefaultErrorCallback, base<PxErrorCallback>>("PxDefaultErrorCallback").constructor<>();
 
-    class_<PxCooking>("PxCooking")
-            .function("createConvexMesh", optional_override(
-                    [](PxCooking &cooking, std::vector<PxVec3> &vertices, PxPhysics &physics) {
-                        return createConvexMesh(vertices, cooking, physics);
-                    }), allow_raw_pointers())
-            .function("createConvexMeshFromBuffer", optional_override(
-                    [](PxCooking &cooking, int vertices, PxU32 vertCount, PxPhysics &physics) {
-                        return createConvexMeshFromBuffer(vertices, vertCount, cooking, physics);
-                    }), allow_raw_pointers())
-            .function("createTriMesh", optional_override(
-                    [](PxCooking &cooking, int vertices, PxU32 vertCount, int indices, PxU32 indexCount, bool isU16,
-                       PxPhysics &physics) {
-                        return createTriMesh(vertices, vertCount, indices, indexCount, isU16, cooking, physics);
-                    }), allow_raw_pointers());
-    class_<PxCookingParams>("PxCookingParams").constructor<PxTolerancesScale>();
-    class_<PxCpuDispatcher>("PxCpuDispatcher");
-    class_<PxBVHStructure>("PxBVHStructure");
-    class_<PxBaseTask>("PxBaseTask");
-    class_<PxDefaultCpuDispatcher, base<PxCpuDispatcher>>("PxDefaultCpuDispatcher");
-
     class_<PxFilterData>("PxFilterData")
             .constructor<PxU32, PxU32, PxU32, PxU32>()
             .property("word0", &PxFilterData::word0)
@@ -763,7 +693,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("getMass", &PxRigidBody::getMass)
             .function("setCMassLocalPose", optional_override(
                     [](PxRigidBody &body, const PxVec3 &pos) {
-                        return body.setCMassLocalPose(PxTransform(pos, PxQuat()));
+                        return body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
                     })) // ✅
             .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor) // ✅
             .function("addTorque", optional_override(
@@ -868,26 +798,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("isValid", &PxCapsuleGeometry::isValid);
     /** PhysXCapsuleColliderShape ✅ */
     class_<PxPlaneGeometry, base<PxGeometry>>("PxPlaneGeometry").constructor<>();
-
-    class_<PxTriangleMesh>("PxTriangleMesh")
-            .function("release", &PxTriangleMesh::release);
-    class_<PxTriangleMeshGeometry, base<PxGeometry>>("PxTriangleMeshGeometry")
-            .constructor<PxTriangleMesh *, const PxMeshScale &, PxMeshGeometryFlags>();
-
-    class_<PxMeshGeometryFlags>("PxMeshGeometryFlags").constructor<int>();
-    enum_<PxMeshGeometryFlag::Enum>("PxMeshGeometryFlag")
-            .value("eDOUBLE_SIDED", PxMeshGeometryFlag::Enum::eDOUBLE_SIDED);
-
-    class_<PxConvexMesh>("PxConvexMesh")
-            .function("release", &PxConvexMesh::release);
-    class_<PxConvexMeshGeometry, base<PxGeometry>>(
-            "PxConvexMeshGeometry").constructor<PxConvexMesh *, const PxMeshScale &, PxConvexMeshGeometryFlags>();
-
-    class_<PxMeshScale>("PxMeshScale").constructor<const PxVec3 &, const PxQuat &>();
-
-    class_<PxConvexMeshGeometryFlags>("PxConvexMeshGeometryFlags").constructor<int>();
-    enum_<PxConvexMeshGeometryFlag::Enum>("PxConvexMeshGeometryFlag")
-            .value("eTIGHT_BOUNDS", PxConvexMeshGeometryFlag::Enum::eTIGHT_BOUNDS);
 
     class_<PxPlane>("PxPlane").constructor<float, float, float, float>();
     
@@ -1073,18 +983,6 @@ namespace emscripten {
 
         template<>
         void raw_destructor<PxJoint>(PxJoint *) { /* do nothing */
-        }
-
-        template<>
-        void raw_destructor<PxCooking>(PxCooking *) { /* do nothing */
-        }
-
-        template<>
-        void raw_destructor<PxConvexMesh>(PxConvexMesh *) { /* do nothing */
-        }
-
-        template<>
-        void raw_destructor<PxTriangleMesh>(PxTriangleMesh *) { /* do nothing */
         }
 
         template<>
