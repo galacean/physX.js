@@ -635,6 +635,8 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxErrorCallback>("PxErrorCallback");
     class_<PxDefaultErrorCallback, base<PxErrorCallback>>("PxDefaultErrorCallback").constructor<>();
 
+    class_<PxBVHStructure>("PxBVHStructure");
+
     class_<PxFilterData>("PxFilterData")
             .constructor<PxU32, PxU32, PxU32, PxU32>()
             .property("word0", &PxFilterData::word0)
