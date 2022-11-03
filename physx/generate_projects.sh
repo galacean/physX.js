@@ -11,7 +11,7 @@ export PM_PATHS="$PM_opengllinux_PATH;$PM_TARGA_PATH;$PM_CGLINUX_PATH;$PM_GLEWLI
 
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
-python ./buildtools/cmake_generate_projects.py $1
+python3 ./buildtools/cmake_generate_projects.py $1
 status=$?
 if [ "$status" -ne "0" ]; then
 echo "Error $status"
