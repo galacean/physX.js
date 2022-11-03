@@ -814,12 +814,19 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxCapsuleControllerDesc, base<PxControllerDesc>>("PxCapsuleControllerDesc")
             .constructor<>()
             .function("isValid", &PxCapsuleControllerDesc::isValid)
-            .function("setToDefault", &PxCapsuleControllerDesc::setToDefault)  // ✅
-            .property("radius", &PxCapsuleControllerDesc::radius)              // ✅
-            .property("height", &PxCapsuleControllerDesc::height)              // ✅
-            .function("setClimbingMode", optional_override([](PxCapsuleControllerDesc &desc, int mode) {
-                          return desc.climbingMode = PxCapsuleClimbingMode::Enum(mode);
-                      }));  // ✅
+            .function("setToDefault", &PxCapsuleControllerDesc::setToDefault)   // ✅
+            .property("radius", &PxCapsuleControllerDesc::radius)               // ✅
+            .property("height", &PxCapsuleControllerDesc::height)               // ✅
+            .property("climbingMode", &PxCapsuleControllerDesc::climbingMode);  // ✅
+    /** PhysXBoxCharacterControllerDesc ✅ */
+    class_<PxBoxControllerDesc, base<PxControllerDesc>>("PxBoxControllerDesc")
+            .constructor<>()
+            .function("isValid", &PxBoxControllerDesc::isValid)
+            .function("setToDefault", &PxBoxControllerDesc::setToDefault)        // ✅
+            .property("halfForwardExtent", &PxBoxControllerDesc::halfForwardExtent)  // ✅
+            .property("halfHeight", &PxBoxControllerDesc::halfHeight)                // ✅
+            .property("halfSideExtent", &PxBoxControllerDesc::halfSideExtent);       // ✅
+
     /** PhysXCharacterController ✅ */
     class_<PxController>("PxController")
             .function("release", &PxController::release)
