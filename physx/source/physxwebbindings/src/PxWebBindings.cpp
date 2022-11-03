@@ -1,8 +1,10 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
-#include "PxPhysicsAPI.h"
 #include <PsSocket.h>
+
 #include <chrono>
+
+#include "PxPhysicsAPI.h"
 
 using namespace physx;
 using namespace emscripten;
@@ -83,8 +85,10 @@ struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
         return call<PxQueryHitType::Enum>("postFilter", filterData, hit);
     }
 
-    PxQueryHitType::Enum
-    preFilter(const PxFilterData &filterData, const PxShape *shape, const PxRigidActor *actor, PxHitFlags &) override {
+    PxQueryHitType::Enum preFilter(const PxFilterData &filterData,
+                                   const PxShape *shape,
+                                   const PxRigidActor *actor,
+                                   PxHitFlags &) override {
         auto hitType = call<PxQueryHitType::Enum>("preFilter", filterData, shape, actor);
         return hitType;
     }
@@ -129,10 +133,13 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
 };
 
-PxFilterFlags DefaultFilterShader(
-        PxFilterObjectAttributes attributes0, PxFilterData,
-        PxFilterObjectAttributes attributes1, PxFilterData,
-        PxPairFlags &pairFlags, const void *, PxU32) {
+PxFilterFlags DefaultFilterShader(PxFilterObjectAttributes attributes0,
+                                  PxFilterData,
+                                  PxFilterObjectAttributes attributes1,
+                                  PxFilterData,
+                                  PxPairFlags &pairFlags,
+                                  const void *,
+                                  PxU32) {
     if (PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1)) {
         pairFlags = PxPairFlag::eTRIGGER_DEFAULT | PxPairFlag::eDETECT_CCD_CONTACT;
         return PxFilterFlag::eDEFAULT;
@@ -170,8 +177,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
 
 #endif
-    class_<PxPvd>("PxPvd")
-            .function("connect", &PxPvd::connect);
+    class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
 
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
 
@@ -190,192 +196,168 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     /* PhysXJoint ✅ */
     class_<PxJoint>("PxJoint")
-            .function("setActors", &PxJoint::setActors, allow_raw_pointers())// ✅
-            .function("setLocalPose", optional_override(
-                    [](PxJoint &joint, int actor, const PxVec3 &position, const PxQuat &rotation) {
-                        joint.setLocalPose(PxJointActorIndex::Enum(actor), PxTransform(position, rotation));
-                    }))// ✅
-            .function("setBreakForce", &PxJoint::setBreakForce)// ✅
-            .function("setConstraintFlag", optional_override(
-                    [](PxJoint &joint, int flag, bool value) {
-                        joint.setConstraintFlag(PxConstraintFlag::Enum(flag), value);
-                    }))// ✅
-            .function("setInvMassScale0", &PxJoint::setInvMassScale0)// ✅
-            .function("setInvInertiaScale0", &PxJoint::setInvInertiaScale0)// ✅
-            .function("setInvMassScale1", &PxJoint::setInvMassScale1)// ✅
-            .function("setInvInertiaScale1", &PxJoint::setInvInertiaScale1)// ✅
+            .function("setActors", &PxJoint::setActors, allow_raw_pointers())  // ✅
+            .function("setLocalPose",
+                      optional_override([](PxJoint &joint, int actor, const PxVec3 &position, const PxQuat &rotation) {
+                          joint.setLocalPose(PxJointActorIndex::Enum(actor), PxTransform(position, rotation));
+                      }))                                        // ✅
+            .function("setBreakForce", &PxJoint::setBreakForce)  // ✅
+            .function("setConstraintFlag", optional_override([](PxJoint &joint, int flag, bool value) {
+                          joint.setConstraintFlag(PxConstraintFlag::Enum(flag), value);
+                      }))                                                    // ✅
+            .function("setInvMassScale0", &PxJoint::setInvMassScale0)        // ✅
+            .function("setInvInertiaScale0", &PxJoint::setInvInertiaScale0)  // ✅
+            .function("setInvMassScale1", &PxJoint::setInvMassScale1)        // ✅
+            .function("setInvInertiaScale1", &PxJoint::setInvInertiaScale1)  // ✅
             .function("release", &PxJoint::release);
     /* PhysXFixedJoint ✅ */
     class_<PxFixedJoint, base<PxJoint>>("PxFixedJoint")
-            .function("setProjectionLinearTolerance", &PxFixedJoint::setProjectionLinearTolerance)// ✅
-            .function("setProjectionAngularTolerance", &PxFixedJoint::setProjectionAngularTolerance); // ✅
+            .function("setProjectionLinearTolerance", &PxFixedJoint::setProjectionLinearTolerance)     // ✅
+            .function("setProjectionAngularTolerance", &PxFixedJoint::setProjectionAngularTolerance);  // ✅
     /* PhysXSphericalJoint ✅ */
     class_<PxSphericalJoint, base<PxJoint>>("PxSphericalJoint")
-            .function("setHardLimitCone", optional_override(
-                    [](PxSphericalJoint &joint, PxReal yLimitAngle, PxReal zLimitAngle, PxReal contactDist) {
-                        joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, contactDist));
-                    }))// ✅
-            .function("setSoftLimitCone", optional_override(
-                    [](PxSphericalJoint &joint, PxReal yLimitAngle, PxReal zLimitAngle, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, PxSpring(stiffness, damping)));
-                    }))// ✅
-            .function("setSphericalJointFlag", optional_override(
-                    [](PxSphericalJoint &joint, PxReal flag, bool value) {
-                        joint.setSphericalJointFlag(PxSphericalJointFlag::Enum(flag), value);
-                    }))// ✅
-            .function("setProjectionLinearTolerance", &PxSphericalJoint::setProjectionLinearTolerance);// ✅
+            .function("setHardLimitCone", optional_override([](PxSphericalJoint &joint, PxReal yLimitAngle,
+                                                               PxReal zLimitAngle, PxReal contactDist) {
+                          joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, contactDist));
+                      }))  // ✅
+            .function("setSoftLimitCone", optional_override([](PxSphericalJoint &joint, PxReal yLimitAngle,
+                                                               PxReal zLimitAngle, PxReal stiffness, PxReal damping) {
+                          joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setSphericalJointFlag", optional_override([](PxSphericalJoint &joint, PxReal flag, bool value) {
+                          joint.setSphericalJointFlag(PxSphericalJointFlag::Enum(flag), value);
+                      }))                                                                                // ✅
+            .function("setProjectionLinearTolerance", &PxSphericalJoint::setProjectionLinearTolerance);  // ✅
     /* PhysXHingeJoint ✅ */
     class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint")
-            .function("setHardLimit", optional_override(
-                    [](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
-                        joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
-                    }))// ✅
-            .function("setSoftLimit", optional_override(
-                    [](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setDriveVelocity", &PxRevoluteJoint::setDriveVelocity)// ✅
-            .function("setDriveForceLimit", &PxRevoluteJoint::setDriveForceLimit)// ✅
-            .function("setDriveGearRatio", &PxRevoluteJoint::setDriveGearRatio)// ✅
-            .function("setRevoluteJointFlag", optional_override(
-                    [](PxRevoluteJoint &joint, PxReal flag, bool value) {
-                        joint.setRevoluteJointFlag(PxRevoluteJointFlag::Enum(flag), value);
-                    }))// ✅
-            .function("setProjectionLinearTolerance", &PxRevoluteJoint::setProjectionLinearTolerance)// ✅
-            .function("setProjectionAngularTolerance", &PxRevoluteJoint::setProjectionAngularTolerance);// ✅
+            .function("setHardLimit", optional_override([](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit,
+                                                           PxReal contactDist) {
+                          joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
+                      }))  // ✅
+            .function("setSoftLimit", optional_override([](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit,
+                                                           PxReal stiffness, PxReal damping) {
+                          joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                      }))                                                          // ✅
+            .function("setDriveVelocity", &PxRevoluteJoint::setDriveVelocity)      // ✅
+            .function("setDriveForceLimit", &PxRevoluteJoint::setDriveForceLimit)  // ✅
+            .function("setDriveGearRatio", &PxRevoluteJoint::setDriveGearRatio)    // ✅
+            .function("setRevoluteJointFlag", optional_override([](PxRevoluteJoint &joint, PxReal flag, bool value) {
+                          joint.setRevoluteJointFlag(PxRevoluteJointFlag::Enum(flag), value);
+                      }))                                                                                 // ✅
+            .function("setProjectionLinearTolerance", &PxRevoluteJoint::setProjectionLinearTolerance)     // ✅
+            .function("setProjectionAngularTolerance", &PxRevoluteJoint::setProjectionAngularTolerance);  // ✅
     /* PhysXSpringJoint ✅ */
     class_<PxDistanceJoint, base<PxJoint>>("PxDistanceJoint")
-            .function("setMinDistance", &PxDistanceJoint::setMinDistance)// ✅
-            .function("setMaxDistance", &PxDistanceJoint::setMaxDistance)// ✅
-            .function("setTolerance", &PxDistanceJoint::setTolerance)// ✅
-            .function("setStiffness", &PxDistanceJoint::setStiffness)// ✅
-            .function("setDamping", &PxDistanceJoint::setDamping)// ✅
-            .function("setDistanceJointFlag", optional_override(
-                    [](PxDistanceJoint &joint, PxReal flag, bool value) {
-                        joint.setDistanceJointFlag(PxDistanceJointFlag::Enum(flag), value);
-                    }));// ✅
+            .function("setMinDistance", &PxDistanceJoint::setMinDistance)  // ✅
+            .function("setMaxDistance", &PxDistanceJoint::setMaxDistance)  // ✅
+            .function("setTolerance", &PxDistanceJoint::setTolerance)      // ✅
+            .function("setStiffness", &PxDistanceJoint::setStiffness)      // ✅
+            .function("setDamping", &PxDistanceJoint::setDamping)          // ✅
+            .function("setDistanceJointFlag", optional_override([](PxDistanceJoint &joint, PxReal flag, bool value) {
+                          joint.setDistanceJointFlag(PxDistanceJointFlag::Enum(flag), value);
+                      }));  // ✅
     /* PhysXTranslationalJoint ✅ */
     class_<PxPrismaticJoint, base<PxJoint>>("PxPrismaticJoint")
-            .function("setHardLimit", optional_override(
-                    [](PxPrismaticJoint &joint, PxTolerancesScale &scale, PxReal lowerLimit, PxReal upperLimit,
-                       PxReal contactDist) {
-                        joint.setLimit(PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
-                    }))// ✅
-            .function("setSoftLimit", optional_override(
-                    [](PxPrismaticJoint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setLimit(PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setPrismaticJointFlag", optional_override(
-                    [](PxPrismaticJoint &joint, PxReal flag, bool value) {
-                        joint.setPrismaticJointFlag(PxPrismaticJointFlag::Enum(flag), value);
-                    }))// ✅
-            .function("setProjectionLinearTolerance", &PxPrismaticJoint::setProjectionLinearTolerance)// ✅
-            .function("setProjectionAngularTolerance", &PxPrismaticJoint::setProjectionAngularTolerance);// ✅
+            .function("setHardLimit", optional_override([](PxPrismaticJoint &joint, PxTolerancesScale &scale,
+                                                           PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                          joint.setLimit(PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
+                      }))  // ✅
+            .function("setSoftLimit", optional_override([](PxPrismaticJoint &joint, PxReal lowerLimit,
+                                                           PxReal upperLimit, PxReal stiffness, PxReal damping) {
+                          joint.setLimit(PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setPrismaticJointFlag", optional_override([](PxPrismaticJoint &joint, PxReal flag, bool value) {
+                          joint.setPrismaticJointFlag(PxPrismaticJointFlag::Enum(flag), value);
+                      }))                                                                                  // ✅
+            .function("setProjectionLinearTolerance", &PxPrismaticJoint::setProjectionLinearTolerance)     // ✅
+            .function("setProjectionAngularTolerance", &PxPrismaticJoint::setProjectionAngularTolerance);  // ✅
     /* PhysXConfigurableJoint ✅ */
     class_<PxD6Joint, base<PxJoint>>("PxD6Joint")
-            .function("setMotion", optional_override(
-                    [](PxD6Joint &joint, int axis, int type) {
-                        joint.setMotion(PxD6Axis::Enum(axis), PxD6Motion::Enum(type));
-                    }))// ✅
-            .function("setHardDistanceLimit", optional_override(
-                    [](PxD6Joint &joint, PxTolerancesScale &scale, PxReal extent, PxReal contactDist) {
-                        joint.setDistanceLimit(PxJointLinearLimit(scale, extent, contactDist));
-                    }))// ✅
-            .function("setSoftDistanceLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal extent, PxReal stiffness, PxReal damping) {
-                        joint.setDistanceLimit(PxJointLinearLimit(extent, PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setHardLinearLimit", optional_override(
-                    [](PxD6Joint &joint, int axis, PxTolerancesScale &scale, PxReal lowerLimit, PxReal upperLimit,
-                       PxReal contactDist) {
-                        joint.setLinearLimit(PxD6Axis::Enum(axis),
-                                             PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
-                    }))// ✅
-            .function("setSoftLinearLimit", optional_override(
-                    [](PxD6Joint &joint, int axis, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setLinearLimit(PxD6Axis::Enum(axis), PxJointLinearLimitPair(lowerLimit, upperLimit,
-                                                                                          PxSpring(stiffness,
-                                                                                                   damping)));
-                    })) // ✅
-            .function("setHardTwistLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
-                        joint.setTwistLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
-                    }))// ✅
-            .function("setSoftTwistLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setTwistLimit(
-                                PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setHardSwingLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
-                        joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, contactDist));
-                    }))// ✅
-            .function("setSoftSwingLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setHardPyramidSwingLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax, PxReal zLimitAngleMin,
-                       PxReal zLimitAngleMax, PxReal contactDist) {
-                        joint.setPyramidSwingLimit(
-                                PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin, zLimitAngleMax,
-                                                    contactDist));
-                    }))// ✅
-            .function("setSoftPyramidSwingLimit", optional_override(
-                    [](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax, PxReal zLimitAngleMin,
-                       PxReal zLimitAngleMax, PxReal stiffness,
-                       PxReal damping) {
-                        joint.setPyramidSwingLimit(
-                                PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin, zLimitAngleMax,
-                                                    PxSpring(stiffness, damping)));
-                    })) // ✅
-            .function("setDrive", optional_override(
-                    [](PxD6Joint &joint, int index, PxReal driveStiffness, PxReal driveDamping,
-                       PxReal driveForceLimit) {
-                        joint.setDrive(PxD6Drive::Enum(index),
-                                       PxD6JointDrive(driveStiffness, driveDamping, driveForceLimit));
-                    }))// ✅
-            .function("setDrivePosition", optional_override(
-                    [](PxD6Joint &joint, const PxVec3 &pos, const PxQuat &rot) {
-                        joint.setDrivePosition(PxTransform(pos, rot));
-                    }))// ✅
-            .function("setDriveVelocity", &PxD6Joint::setDriveVelocity)// ✅
-            .function("setProjectionLinearTolerance", &PxD6Joint::setProjectionLinearTolerance)// ✅
-            .function("setProjectionAngularTolerance", &PxD6Joint::setProjectionAngularTolerance);// ✅
+            .function("setMotion", optional_override([](PxD6Joint &joint, int axis, int type) {
+                          joint.setMotion(PxD6Axis::Enum(axis), PxD6Motion::Enum(type));
+                      }))  // ✅
+            .function("setHardDistanceLimit", optional_override([](PxD6Joint &joint, PxTolerancesScale &scale,
+                                                                   PxReal extent, PxReal contactDist) {
+                          joint.setDistanceLimit(PxJointLinearLimit(scale, extent, contactDist));
+                      }))  // ✅
+            .function("setSoftDistanceLimit",
+                      optional_override([](PxD6Joint &joint, PxReal extent, PxReal stiffness, PxReal damping) {
+                          joint.setDistanceLimit(PxJointLinearLimit(extent, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setHardLinearLimit",
+                      optional_override([](PxD6Joint &joint, int axis, PxTolerancesScale &scale, PxReal lowerLimit,
+                                           PxReal upperLimit, PxReal contactDist) {
+                          joint.setLinearLimit(PxD6Axis::Enum(axis),
+                                               PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
+                      }))  // ✅
+            .function("setSoftLinearLimit", optional_override([](PxD6Joint &joint, int axis, PxReal lowerLimit,
+                                                                 PxReal upperLimit, PxReal stiffness, PxReal damping) {
+                          joint.setLinearLimit(
+                                  PxD6Axis::Enum(axis),
+                                  PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setHardTwistLimit",
+                      optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                          joint.setTwistLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
+                      }))  // ✅
+            .function("setSoftTwistLimit", optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit,
+                                                                PxReal stiffness, PxReal damping) {
+                          joint.setTwistLimit(
+                                  PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setHardSwingLimit",
+                      optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
+                          joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, contactDist));
+                      }))  // ✅
+            .function("setSoftSwingLimit", optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit,
+                                                                PxReal stiffness, PxReal damping) {
+                          joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setHardPyramidSwingLimit",
+                      optional_override([](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax,
+                                           PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal contactDist) {
+                          joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin,
+                                                                         zLimitAngleMax, contactDist));
+                      }))  // ✅
+            .function("setSoftPyramidSwingLimit",
+                      optional_override([](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax,
+                                           PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal stiffness,
+                                           PxReal damping) {
+                          joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin,
+                                                                         zLimitAngleMax, PxSpring(stiffness, damping)));
+                      }))  // ✅
+            .function("setDrive", optional_override([](PxD6Joint &joint, int index, PxReal driveStiffness,
+                                                       PxReal driveDamping, PxReal driveForceLimit) {
+                          joint.setDrive(PxD6Drive::Enum(index),
+                                         PxD6JointDrive(driveStiffness, driveDamping, driveForceLimit));
+                      }))  // ✅
+            .function("setDrivePosition", optional_override([](PxD6Joint &joint, const PxVec3 &pos, const PxQuat &rot) {
+                          joint.setDrivePosition(PxTransform(pos, rot));
+                      }))                                                                           // ✅
+            .function("setDriveVelocity", &PxD6Joint::setDriveVelocity)                             // ✅
+            .function("setProjectionLinearTolerance", &PxD6Joint::setProjectionLinearTolerance)     // ✅
+            .function("setProjectionAngularTolerance", &PxD6Joint::setProjectionAngularTolerance);  // ✅
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
-    class_<PxTolerancesScale>("PxTolerancesScale").constructor<>()
-            .property("speed", &PxTolerancesScale::speed);
+    class_<PxTolerancesScale>("PxTolerancesScale").constructor<>().property("speed", &PxTolerancesScale::speed);
 
     // Define PxsetCMassLocalPoseec3, PxQuat and PxTransform as value objects to allow sumerian Vector3
     // and Quaternion to be used directly without the need to free the memory
-    value_object<PxVec3>("PxVec3")
-            .field("x", &PxVec3::x)
-            .field("y", &PxVec3::y)
-            .field("z", &PxVec3::z);
+    value_object<PxVec3>("PxVec3").field("x", &PxVec3::x).field("y", &PxVec3::y).field("z", &PxVec3::z);
     register_vector<PxVec3>("PxVec3Vector");
     value_object<PxQuat>("PxQuat")
             .field("x", &PxQuat::x)
             .field("y", &PxQuat::y)
             .field("z", &PxQuat::z)
             .field("w", &PxQuat::w);
-    value_object<PxTransform>("PxTransform")
-            .field("translation", &PxTransform::p)
-            .field("rotation", &PxTransform::q);
+    value_object<PxTransform>("PxTransform").field("translation", &PxTransform::p).field("rotation", &PxTransform::q);
     value_object<PxExtendedVec3>("PxExtendedVec3")
             .field("x", &PxExtendedVec3::x)
             .field("y", &PxExtendedVec3::y)
             .field("z", &PxExtendedVec3::z);
 
-    enum_<PxIDENTITY>("PxIDENTITY")
-            .value("PxIdentity", PxIDENTITY::PxIdentity);
+    enum_<PxIDENTITY>("PxIDENTITY").value("PxIdentity", PxIDENTITY::PxIdentity);
 
     enum_<PxForceMode::Enum>("PxForceMode")
             .value("eFORCE", PxForceMode::Enum::eFORCE)
@@ -383,9 +365,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eVELOCITY_CHANGE", PxForceMode::Enum::eVELOCITY_CHANGE)
             .value("eACCELERATION", PxForceMode::Enum::eACCELERATION);
 
-
-    class_<PxSceneDesc>("PxSceneDesc").constructor<PxTolerancesScale>()
-            .property("gravity", &PxSceneDesc::gravity);
+    class_<PxSceneDesc>("PxSceneDesc").constructor<PxTolerancesScale>().property("gravity", &PxSceneDesc::gravity);
 
     class_<PxFoundation>("PxFoundation").function("release", &PxFoundation::release);
 
@@ -407,82 +387,74 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     /** PhysXPhysicsManager ✅ */
     class_<PxScene>("PxScene")
-            .function("setGravity", &PxScene::setGravity) // ✅
+            .function("setGravity", &PxScene::setGravity)  // ✅
             .function("getGravity", &PxScene::getGravity)
-            .function("addActor", &PxScene::addActor, allow_raw_pointers()) // ✅
-            .function("removeActor", &PxScene::removeActor, allow_raw_pointers()) // ✅
+            .function("addActor", &PxScene::addActor, allow_raw_pointers())        // ✅
+            .function("removeActor", &PxScene::removeActor, allow_raw_pointers())  // ✅
             .function("getScenePvdClient", &PxScene::getScenePvdClient, allow_raw_pointers())
             .function("getActors", &PxScene::getActors, allow_raw_pointers())
             .function("setVisualizationCullingBox", &PxScene::setVisualizationCullingBox)
-            .function("collide", optional_override(
-                    [](PxScene &scene, PxReal elapsedTime) {
-                        scene.collide(elapsedTime);
-                    }))
+            .function("collide",
+                      optional_override([](PxScene &scene, PxReal elapsedTime) { scene.collide(elapsedTime); }))
             .function("fetchCollision", &PxScene::fetchCollision)
-            .function("advance", optional_override(
-                    [](PxScene &scene) {
-                        scene.advance();
-                    }))
-            .function("fetchResults", optional_override(
-                    [](PxScene &scene, bool block) {
-                        // fetchResults uses an out pointer
-                        // which embind can't represent
-                        // so let's override.
-                        bool fetched = scene.fetchResults(block);
-                        return fetched;
-                    })) // ✅
-            .function("simulate", optional_override(
-                    [](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
-                        scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
-                    })) // ✅
+            .function("advance", optional_override([](PxScene &scene) { scene.advance(); }))
+            .function("fetchResults", optional_override([](PxScene &scene, bool block) {
+                          // fetchResults uses an out pointer
+                          // which embind can't represent
+                          // so let's override.
+                          bool fetched = scene.fetchResults(block);
+                          return fetched;
+                      }))  // ✅
+            .function("simulate", optional_override([](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
+                          scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
+                      }))  // ✅
             .function("raycast", &PxScene::raycast, allow_raw_pointers())
-            .function("raycastAny", optional_override(
-                    [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance) {
-                        PxSceneQueryHit hit;
-                        return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit);
-                    }))
-            .function("raycastSingle", optional_override(
-                    [](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir, const PxReal distance,
-                       PxRaycastHit &hit, const PxSceneQueryFilterData &filterData) {
-                        return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
-                                                              PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData);
-                    })) // ✅
+            .function("raycastAny", optional_override([](const PxScene &scene, const PxVec3 &origin,
+                                                         const PxVec3 &unitDir, const PxReal distance) {
+                          PxSceneQueryHit hit;
+                          return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit);
+                      }))
+            .function("raycastSingle",
+                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
+                                           const PxReal distance, PxRaycastHit &hit,
+                                           const PxSceneQueryFilterData &filterData) {
+                          return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
+                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData);
+                      }))  // ✅
             .function("sweep", &PxScene::sweep, allow_raw_pointers())
-            .function("sweepAny", optional_override(
-                    [](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &unitDir,
-                       const PxReal distance, PxSceneQueryFlags queryFlags) {
-                        PxSweepHit hit;
-                        return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance, queryFlags, hit);
-                    }))
-            .function("sweepSingle", optional_override(
-                    [](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &unitDir,
-                       const PxReal distance, PxSceneQueryFlags outputFlags, PxSweepHit &hit) {
-                        return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags, hit);
-                    }))
-            .function("addController", optional_override(
-                    [](PxScene &scene, PxController &controller) {
-                        auto actor = controller.getActor();
-                        scene.addActor(*actor);
-                    }))
-            .function("removeController", optional_override(
-                    [](PxScene &scene, PxController &controller) {
-                        auto actor = controller.getActor();
-                        scene.removeActor(*actor);
-                    }))
-            .function("createControllerManager", optional_override(
-                    [](PxScene &scene) {
-                        return PxCreateControllerManager(scene);
-                    }), allow_raw_pointers()); // ✅
+            .function("sweepAny",
+                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+                                           const PxVec3 &unitDir, const PxReal distance, PxSceneQueryFlags queryFlags) {
+                          PxSweepHit hit;
+                          return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance, queryFlags, hit);
+                      }))
+            .function("sweepSingle",
+                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+                                           const PxVec3 &unitDir, const PxReal distance, PxSceneQueryFlags outputFlags,
+                                           PxSweepHit &hit) {
+                          return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags,
+                                                              hit);
+                      }))
+            .function("addController", optional_override([](PxScene &scene, PxController &controller) {
+                          auto actor = controller.getActor();
+                          scene.addActor(*actor);
+                      }))
+            .function("removeController", optional_override([](PxScene &scene, PxController &controller) {
+                          auto actor = controller.getActor();
+                          scene.removeActor(*actor);
+                      }))
+            .function("createControllerManager",
+                      optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
+                      allow_raw_pointers());  // ✅
 
     class_<PxLocationHit>("PxLocationHit")
             .property("position", &PxLocationHit::position)
             .property("normal", &PxLocationHit::normal)
             .property("distance", &PxLocationHit::distance);
-    class_<PxRaycastHit, base<PxLocationHit>>("PxRaycastHit").constructor<>()
-            .function("getShape", optional_override(
-                    [](PxRaycastHit &block) {
-                        return block.shape;
-                    }), allow_raw_pointers());
+    class_<PxRaycastHit, base<PxLocationHit>>("PxRaycastHit")
+            .constructor<>()
+            .function("getShape", optional_override([](PxRaycastHit &block) { return block.shape; }),
+                      allow_raw_pointers());
     class_<PxRaycastCallback>("PxRaycastCallback")
             .property("block", &PxRaycastCallback::block)
             .property("hasBlock", &PxRaycastCallback::hasBlock)
@@ -491,15 +463,12 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     function("allocateRaycastHitBuffers", &allocateRaycastHitBuffers, allow_raw_pointers());
 
-    class_<PxSweepHit, base<PxLocationHit>>("PxSweepHit").constructor<>()
-            .function("getShape", optional_override(
-                    [](PxSweepHit &block) {
-                        return block.shape;
-                    }), allow_raw_pointers())
-            .function("getActor", optional_override(
-                    [](PxSweepHit &block) {
-                        return block.actor;
-                    }), allow_raw_pointers());
+    class_<PxSweepHit, base<PxLocationHit>>("PxSweepHit")
+            .constructor<>()
+            .function("getShape", optional_override([](PxSweepHit &block) { return block.shape; }),
+                      allow_raw_pointers())
+            .function("getActor", optional_override([](PxSweepHit &block) { return block.actor; }),
+                      allow_raw_pointers());
     class_<PxSweepCallback>("PxSweepCallback")
             .property("block", &PxSweepCallback::block)
             .property("hasBlock", &PxSweepCallback::hasBlock)
@@ -514,8 +483,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eMESH_BOTH_SIDES", PxHitFlag::Enum::eMESH_BOTH_SIDES)
             .value("eMESH_MULTIPLE", PxHitFlag::Enum::eMESH_MULTIPLE);
 
-    class_<PxQueryFilterData>("PxQueryFilterData").constructor<>()
-            .property("flags", &PxQueryFilterData::flags);
+    class_<PxQueryFilterData>("PxQueryFilterData").constructor<>().property("flags", &PxQueryFilterData::flags);
     class_<PxQueryFlags>("PxQueryFlags").constructor<int>();
     enum_<PxQueryFlag::Enum>("PxQueryFlag")
             .value("eANY_HIT", PxQueryFlag::Enum::eANY_HIT)
@@ -563,10 +531,9 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
             .function("setQueryFilterData", &PxShape::setQueryFilterData)
             .function("getQueryFilterData", &PxShape::getQueryFilterData, allow_raw_pointers())
-            .function("setMaterials", optional_override(
-                    [](PxShape &shape, std::vector<PxMaterial *> materials) {
-                        return shape.setMaterials(materials.data(), materials.size());
-                    }));
+            .function("setMaterials", optional_override([](PxShape &shape, std::vector<PxMaterial *> materials) {
+                          return shape.setMaterials(materials.data(), materials.size());
+                      }));
 
     /** PhysXPhysics ✅ */
     class_<PxPhysics>("PxPhysics")
@@ -575,52 +542,59 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createScene", &PxPhysics::createScene, allow_raw_pointers())
             .function("createShape",
                       select_overload<PxShape *(const PxGeometry &, const PxMaterial &, bool, PxShapeFlags)>(
-                              &PxPhysics::createShape), allow_raw_pointers())
+                              &PxPhysics::createShape),
+                      allow_raw_pointers())
             .function("createMaterial", &PxPhysics::createMaterial, allow_raw_pointers())
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
             .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers())
-            .function("createFixedJoint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                  actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()) // ✅
-            .function("createRevoluteJoint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                     actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()) // ✅
-            .function("createSphericalJoint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxSphericalJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                      actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()) // ✅
-            .function("createDistanceJoint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                     actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()) // ✅
-            .function("createPrismaticJoint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                      actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()) // ✅
-            .function("createD6Joint", optional_override(
-                    [](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                       const PxQuat &localRotation0,
-                       PxRigidActor *actor1, const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                        return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                               actor1, PxTransform(localPosition1, localRotation1));
-                    }), allow_raw_pointers()); // ✅
+            .function("createFixedJoint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                    actor1, PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers())  // ✅
+            .function("createRevoluteJoint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                       actor1, PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers())  // ✅
+            .function("createSphericalJoint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxSphericalJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                        actor1, PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers())  // ✅
+            .function("createDistanceJoint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                       actor1, PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers())  // ✅
+            .function("createPrismaticJoint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
+                                                        actor1, PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers())  // ✅
+            .function("createD6Joint",
+                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
+                                           const PxQuat &localRotation0, PxRigidActor *actor1,
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                          return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0), actor1,
+                                                 PxTransform(localPosition1, localRotation1));
+                      }),
+                      allow_raw_pointers());  // ✅
 
     class_<PxShapeFlags>("PxShapeFlags").constructor<int>().function("isSet", &PxShapeFlags::isSet);
     enum_<PxShapeFlag::Enum>("PxShapeFlag")
@@ -629,8 +603,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .value("eTRIGGER_SHAPE", PxShapeFlag::Enum::eTRIGGER_SHAPE)
             .value("eVISUALIZATION", PxShapeFlag::Enum::eVISUALIZATION);
 
-    enum_<PxActorFlag::Enum>("PxActorFlag")
-            .value("eDISABLE_GRAVITY", PxActorFlag::Enum::eDISABLE_GRAVITY);
+    enum_<PxActorFlag::Enum>("PxActorFlag").value("eDISABLE_GRAVITY", PxActorFlag::Enum::eDISABLE_GRAVITY);
 
     class_<PxErrorCallback>("PxErrorCallback");
     class_<PxDefaultErrorCallback, base<PxErrorCallback>>("PxDefaultErrorCallback").constructor<>();
@@ -649,123 +622,110 @@ EMSCRIPTEN_BINDINGS(physx) {
     enum_<PxFilterFlag::Enum>("PxFilterFlag");
 
     /** PhysXCollider ✅ */
-    class_<PxActor>("PxActor")
-            .function("setActorFlag", &PxActor::setActorFlag)
-            .function("release", &PxActor::release);
+    class_<PxActor>("PxActor").function("setActorFlag", &PxActor::setActorFlag).function("release", &PxActor::release);
     class_<PxRigidActor, base<PxActor>>("PxRigidActor")
-            .function("attachShape", &PxRigidActor::attachShape) // ✅
-            .function("detachShape", &PxRigidActor::detachShape) // ✅
-            .function("getGlobalPose", &PxRigidActor::getGlobalPose, allow_raw_pointers()) // ✅
-            .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers()) // ✅
-            .function("getShape", optional_override(
-                    [](PxRigidActor &actor) {
-                        PxShape *shape;
-                        actor.getShapes(&shape, 1);
-                        return shape;
-                    }), allow_raw_pointers())
-            .function("setQueryFilterData", optional_override(
-                    [](PxRigidActor &actor, PxFilterData &data) {
-                        PxShape *shape;
-                        actor.getShapes(&shape, 1);
-                        shape->setQueryFilterData(data);
-                    }))
-            .function("getQueryFilterData", optional_override(
-                    [](PxRigidActor &actor, PxFilterData &data) {
-                        PxShape *shape;
-                        actor.getShapes(&shape, 1);
-                        return shape->getQueryFilterData();
-                    }));
+            .function("attachShape", &PxRigidActor::attachShape)                            // ✅
+            .function("detachShape", &PxRigidActor::detachShape)                            // ✅
+            .function("getGlobalPose", &PxRigidActor::getGlobalPose, allow_raw_pointers())  // ✅
+            .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers())  // ✅
+            .function("getShape", optional_override([](PxRigidActor &actor) {
+                          PxShape *shape;
+                          actor.getShapes(&shape, 1);
+                          return shape;
+                      }),
+                      allow_raw_pointers())
+            .function("setQueryFilterData", optional_override([](PxRigidActor &actor, PxFilterData &data) {
+                          PxShape *shape;
+                          actor.getShapes(&shape, 1);
+                          shape->setQueryFilterData(data);
+                      }))
+            .function("getQueryFilterData", optional_override([](PxRigidActor &actor, PxFilterData &data) {
+                          PxShape *shape;
+                          actor.getShapes(&shape, 1);
+                          return shape->getQueryFilterData();
+                      }));
     /** PhysXStaticCollider ✅ */
     class_<PxRigidStatic, base<PxRigidActor>>("PxRigidStatic");
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidBody, base<PxRigidActor>>("PxRigidBody")
-            .function("setAngularDamping", &PxRigidBody::setAngularDamping) // ✅
+            .function("setAngularDamping", &PxRigidBody::setAngularDamping)  // ✅
             .function("getAngularDamping", &PxRigidBody::getAngularDamping)
-            .function("setLinearDamping", &PxRigidBody::setLinearDamping) // ✅
+            .function("setLinearDamping", &PxRigidBody::setLinearDamping)  // ✅
             .function("getLinearDamping", &PxRigidBody::getLinearDamping)
-            .function("setAngularVelocity", &PxRigidBody::setAngularVelocity) // ✅
+            .function("setAngularVelocity", &PxRigidBody::setAngularVelocity)  // ✅
             .function("getAngularVelocity", &PxRigidBody::getAngularVelocity)
-            .function("setLinearVelocity", &PxRigidBody::setLinearVelocity) // ✅
+            .function("setLinearVelocity", &PxRigidBody::setLinearVelocity)  // ✅
             .function("getLinearVelocity", &PxRigidBody::getLinearVelocity)
-            .function("setMaxAngularVelocity", &PxRigidBody::setMaxAngularVelocity) // ✅
+            .function("setMaxAngularVelocity", &PxRigidBody::setMaxAngularVelocity)  // ✅
             .function("getMaxAngularVelocity", &PxRigidBody::getMaxAngularVelocity)
-            .function("setMaxDepenetrationVelocity", &PxRigidBody::setMaxDepenetrationVelocity) // ✅
+            .function("setMaxDepenetrationVelocity", &PxRigidBody::setMaxDepenetrationVelocity)  // ✅
             .function("getMaxDepenetrationVelocity", &PxRigidBody::getMaxDepenetrationVelocity)
-            .function("setMass", &PxRigidBody::setMass) // ✅
+            .function("setMass", &PxRigidBody::setMass)  // ✅
             .function("getMass", &PxRigidBody::getMass)
-            .function("setCMassLocalPose", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &pos) {
-                        return body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
-                    })) // ✅
-            .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor) // ✅
-            .function("addTorque", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &torque) {
-                        body.addTorque(torque, PxForceMode::eFORCE, true);
-                    })) // ✅
-            .function("addForce", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &force) {
-                        body.addForce(force, PxForceMode::eFORCE, true);
-                    })) // ✅
-            .function("addForceAtPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                        PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
-                    }))
-            .function("addForceAtLocalPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                        PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-                    }))
-            .function("addLocalForceAtLocalPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                        PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-                    }))
-            .function("addImpulseAtPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                        PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                    }))
-            .function("addImpulseAtLocalPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                        PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                    }))
-            .function("addLocalImpulseAtLocalPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                        PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                    }))
-            .function("getVelocityAtPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &pos) {
-                        return PxRigidBodyExt::getVelocityAtPos(body, pos);
-                    }))
-            .function("getLocalVelocityAtLocalPos", optional_override(
-                    [](PxRigidBody &body, const PxVec3 &pos) {
-                        return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
-                    }))
+            .function("setCMassLocalPose", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
+                          return body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
+                      }))                                                                    // ✅
+            .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor)  // ✅
+            .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque) {
+                          body.addTorque(torque, PxForceMode::eFORCE, true);
+                      }))  // ✅
+            .function("addForce", optional_override([](PxRigidBody &body, const PxVec3 &force) {
+                          body.addForce(force, PxForceMode::eFORCE, true);
+                      }))  // ✅
+            .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addForceAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addLocalForceAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addImpulseAtPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("addImpulseAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("addLocalImpulseAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
+                          return PxRigidBodyExt::getVelocityAtPos(body, pos);
+                      }))
+            .function("getLocalVelocityAtLocalPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
+                          return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
+                      }))
             .function("setRigidBodyFlag", &PxRigidBody::setRigidBodyFlag)
-            .function("getRigidBodyFlags", optional_override(
-                    [](PxRigidBody &body) {
-                        return (bool) (body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC);
-                    })) // ✅
-            .function("setMassAndUpdateInertia", optional_override(
-                    [](PxRigidBody &body, PxReal mass) {
-                        return PxRigidBodyExt::setMassAndUpdateInertia(body, mass, nullptr, false);
-                    }));
+            .function("getRigidBodyFlags", optional_override([](PxRigidBody &body) {
+                          return (bool)(body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC);
+                      }))  // ✅
+            .function("setMassAndUpdateInertia", optional_override([](PxRigidBody &body, PxReal mass) {
+                          return PxRigidBodyExt::setMassAndUpdateInertia(body, mass, nullptr, false);
+                      }));
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidDynamic, base<PxRigidBody>>("PxRigidDynamic")
-            .function("setSleepThreshold", &PxRigidDynamic::setSleepThreshold) // ✅
+            .function("setSleepThreshold", &PxRigidDynamic::setSleepThreshold)  // ✅
             .function("getSleepThreshold", &PxRigidDynamic::getSleepThreshold)
-            .function("setSolverIterationCounts", &PxRigidDynamic::setSolverIterationCounts) // ✅
-            .function("wakeUp", &PxRigidDynamic::wakeUp) // ✅
+            .function("setSolverIterationCounts", &PxRigidDynamic::setSolverIterationCounts)  // ✅
+            .function("wakeUp", &PxRigidDynamic::wakeUp)                                      // ✅
             .function("setWakeCounter", &PxRigidDynamic::setWakeCounter)
             .function("isSleeping", &PxRigidDynamic::isSleeping)
-            .function("putToSleep", &PxRigidDynamic::putToSleep) // ✅
+            .function("putToSleep", &PxRigidDynamic::putToSleep)  // ✅
             .function("getWakeCounter", &PxRigidDynamic::getWakeCounter)
-            .function("setKinematicTarget", optional_override(
-                    [](PxRigidDynamic &body, const PxVec3 &pos, const PxQuat &rot) {
-                        return body.setKinematicTarget(PxTransform(pos, rot));
-                    })) // ✅
+            .function("setKinematicTarget",
+                      optional_override([](PxRigidDynamic &body, const PxVec3 &pos, const PxQuat &rot) {
+                          return body.setKinematicTarget(PxTransform(pos, rot));
+                      }))  // ✅
             .function("setRigidDynamicLockFlag", &PxRigidDynamic::setRigidDynamicLockFlag)
-            .function("setRigidDynamicLockFlags", optional_override(
-                    [](PxRigidDynamic &body, int flags) {
-                        return body.setRigidDynamicLockFlags(PxRigidDynamicLockFlags(flags));
-                    })); // ✅
+            .function("setRigidDynamicLockFlags", optional_override([](PxRigidDynamic &body, int flags) {
+                          return body.setRigidDynamicLockFlags(PxRigidDynamicLockFlags(flags));
+                      }));  // ✅
     class_<PxRigidBodyFlags>("PxRigidBodyFlags");
     enum_<PxRigidBodyFlag::Enum>("PxRigidBodyFlag")
             .value("eKINEMATIC", PxRigidBodyFlag::Enum::eKINEMATIC)
@@ -785,222 +745,219 @@ EMSCRIPTEN_BINDINGS(physx) {
             .constructor<>()
             .constructor<float, float, float>()
             .function("isValid", &PxBoxGeometry::isValid)
-            .property("halfExtents", &PxBoxGeometry::halfExtents); // ✅
+            .property("halfExtents", &PxBoxGeometry::halfExtents);  // ✅
     /** PhysXSphereColliderShape ✅ */
     class_<PxSphereGeometry, base<PxGeometry>>("PxSphereGeometry")
             .constructor<>()
             .constructor<float>()
-            .property("radius", &PxSphereGeometry::radius) // ✅
+            .property("radius", &PxSphereGeometry::radius)  // ✅
             .function("isValid", &PxSphereGeometry::isValid);
     /** PhysXCapsuleColliderShape ✅ */
     class_<PxCapsuleGeometry, base<PxGeometry>>("PxCapsuleGeometry")
             .constructor<float, float>()
-            .property("radius", &PxCapsuleGeometry::radius) // ✅
-            .property("halfHeight", &PxCapsuleGeometry::halfHeight) // ✅
+            .property("radius", &PxCapsuleGeometry::radius)          // ✅
+            .property("halfHeight", &PxCapsuleGeometry::halfHeight)  // ✅
             .function("isValid", &PxCapsuleGeometry::isValid);
     /** PhysXCapsuleColliderShape ✅ */
     class_<PxPlaneGeometry, base<PxGeometry>>("PxPlaneGeometry").constructor<>();
 
     class_<PxPlane>("PxPlane").constructor<float, float, float, float>();
-    
+
     enum_<PxControllerShapeType::Enum>("PxControllerShapeType")
             .value("eBOX", PxControllerShapeType::Enum::eBOX)
             .value("eCAPSULE", PxControllerShapeType::Enum::eCAPSULE);
     enum_<PxControllerNonWalkableMode::Enum>("PxControllerNonWalkableMode")
             .value("ePREVENT_CLIMBING", PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING)
-            .value("ePREVENT_CLIMBING_AND_FORCE_SLIDING", PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING_AND_FORCE_SLIDING);
+            .value("ePREVENT_CLIMBING_AND_FORCE_SLIDING",
+                   PxControllerNonWalkableMode::Enum::ePREVENT_CLIMBING_AND_FORCE_SLIDING);
     enum_<PxControllerCollisionFlag::Enum>("PxControllerCollisionFlag")
             .value("eCOLLISION_SIDES", PxControllerCollisionFlag::Enum::eCOLLISION_SIDES)
             .value("eCOLLISION_UP", PxControllerCollisionFlag::Enum::eCOLLISION_UP)
             .value("eCOLLISION_DOWN", PxControllerCollisionFlag::Enum::eCOLLISION_DOWN);
-    class_<PxControllerCollisionFlags>("PxControllerCollisionFlags").constructor<int>().function("isSet", &PxControllerCollisionFlags::isSet);
+    class_<PxControllerCollisionFlags>("PxControllerCollisionFlags")
+            .constructor<int>()
+            .function("isSet", &PxControllerCollisionFlags::isSet);
     /** PhysXCharacterControllerManager ✅ */
     class_<PxControllerManager>("PxControllerManager")
-            .function("purgeControllers", &PxControllerManager::purgeControllers) // ✅
-            .function("createController", &PxControllerManager::createController, allow_raw_pointers()) // ✅
-            .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers()) // ✅
-            .function("setTessellation", &PxControllerManager::setTessellation) // ✅
-            .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule) // ✅
-            .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps) // ✅
+            .function("purgeControllers", &PxControllerManager::purgeControllers)                              // ✅
+            .function("createController", &PxControllerManager::createController, allow_raw_pointers())        // ✅
+            .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers())  // ✅
+            .function("setTessellation", &PxControllerManager::setTessellation)                                // ✅
+            .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)              // ✅
+            .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps)                              // ✅
             .function("setPreventVerticalSlidingAgainstCeiling",
-                      &PxControllerManager::setPreventVerticalSlidingAgainstCeiling) // ✅
-            .function("shiftOrigin", &PxControllerManager::shiftOrigin); // ✅
+                      &PxControllerManager::setPreventVerticalSlidingAgainstCeiling)  // ✅
+            .function("shiftOrigin", &PxControllerManager::shiftOrigin);              // ✅
     /** PhysXCharacterControllerDesc ✅ */
     class_<PxControllerDesc>("PxControllerDesc")
             .function("isValid", &PxControllerDesc::isValid)
-            .function("getType", &PxControllerDesc::getType) // ✅
-            .property("position", &PxControllerDesc::position) // ✅
-            .property("upDirection", &PxControllerDesc::upDirection) // ✅
-            .property("slopeLimit", &PxControllerDesc::slopeLimit) // ✅
-            .property("invisibleWallHeight", &PxControllerDesc::invisibleWallHeight) // ✅
-            .property("maxJumpHeight", &PxControllerDesc::maxJumpHeight) // ✅
-            .property("contactOffset", &PxControllerDesc::contactOffset) // ✅
-            .property("stepOffset", &PxControllerDesc::stepOffset) // ✅
-            .property("density", &PxControllerDesc::density) // ✅
-            .property("scaleCoeff", &PxControllerDesc::scaleCoeff) // ✅
-            .property("volumeGrowth", &PxControllerDesc::volumeGrowth) // ✅
-            .function("setNonWalkableMode", optional_override(
-                    [](PxControllerDesc &desc, int mode) {
-                        return desc.nonWalkableMode = PxControllerNonWalkableMode::Enum(mode);
-                    })) // ✅
-            .function("setMaterial", optional_override(
-                    [](PxControllerDesc &desc, PxMaterial *material) {
-                        return desc.material = material;
-                    }), allow_raw_pointers()) // ✅
-            .property("registerDeletionListener", &PxControllerDesc::registerDeletionListener); // ✅
+            .function("getType", &PxControllerDesc::getType)                          // ✅
+            .property("position", &PxControllerDesc::position)                        // ✅
+            .property("upDirection", &PxControllerDesc::upDirection)                  // ✅
+            .property("slopeLimit", &PxControllerDesc::slopeLimit)                    // ✅
+            .property("invisibleWallHeight", &PxControllerDesc::invisibleWallHeight)  // ✅
+            .property("maxJumpHeight", &PxControllerDesc::maxJumpHeight)              // ✅
+            .property("contactOffset", &PxControllerDesc::contactOffset)              // ✅
+            .property("stepOffset", &PxControllerDesc::stepOffset)                    // ✅
+            .property("density", &PxControllerDesc::density)                          // ✅
+            .property("scaleCoeff", &PxControllerDesc::scaleCoeff)                    // ✅
+            .property("volumeGrowth", &PxControllerDesc::volumeGrowth)                // ✅
+            .function("setNonWalkableMode", optional_override([](PxControllerDesc &desc, int mode) {
+                          return desc.nonWalkableMode = PxControllerNonWalkableMode::Enum(mode);
+                      }))  // ✅
+            .function("setMaterial", optional_override([](PxControllerDesc &desc, PxMaterial *material) {
+                          return desc.material = material;
+                      }),
+                      allow_raw_pointers())                                                      // ✅
+            .property("registerDeletionListener", &PxControllerDesc::registerDeletionListener);  // ✅
     /** PhysXCapsuleCharacterControllerDesc ✅ */
     class_<PxCapsuleControllerDesc, base<PxControllerDesc>>("PxCapsuleControllerDesc")
             .constructor<>()
             .function("isValid", &PxCapsuleControllerDesc::isValid)
-            .function("setToDefault", &PxCapsuleControllerDesc::setToDefault) // ✅
-            .property("radius", &PxCapsuleControllerDesc::radius) // ✅
-            .property("height", &PxCapsuleControllerDesc::height) // ✅
-            .function("setClimbingMode", optional_override(
-                    [](PxCapsuleControllerDesc &desc, int mode) {
-                        return desc.climbingMode = PxCapsuleClimbingMode::Enum(mode);
-                    })); // ✅
+            .function("setToDefault", &PxCapsuleControllerDesc::setToDefault)  // ✅
+            .property("radius", &PxCapsuleControllerDesc::radius)              // ✅
+            .property("height", &PxCapsuleControllerDesc::height)              // ✅
+            .function("setClimbingMode", optional_override([](PxCapsuleControllerDesc &desc, int mode) {
+                          return desc.climbingMode = PxCapsuleClimbingMode::Enum(mode);
+                      }));  // ✅
     /** PhysXCharacterController ✅ */
     class_<PxController>("PxController")
             .function("release", &PxController::release)
-            .function("isSetControllerCollisionFlag", optional_override(
-                    [](PxController &controller, PxControllerCollisionFlags& flags, int flag) {
-                        return flags.isSet(PxControllerCollisionFlag::Enum(flag));
-                    })) // ✅
-            .function("move", optional_override(
-                    [](PxController &controller, const PxVec3 &disp, PxF32 minDist, PxF32 elapsedTime)->uint32_t {
-                        return controller.move(disp, minDist, elapsedTime, PxControllerFilters());
-                    })) // ✅
-            .function("setPosition", &PxController::setPosition) // ✅
+            .function("isSetControllerCollisionFlag",
+                      optional_override([](PxController &controller, PxControllerCollisionFlags &flags, int flag) {
+                          return flags.isSet(PxControllerCollisionFlag::Enum(flag));
+                      }))  // ✅
+            .function("move", optional_override([](PxController &controller, const PxVec3 &disp, PxF32 minDist,
+                                                   PxF32 elapsedTime) -> uint32_t {
+                          return controller.move(disp, minDist, elapsedTime, PxControllerFilters());
+                      }))                                         // ✅
+            .function("setPosition", &PxController::setPosition)  // ✅
             .function("getPosition", &PxController::getPosition)
-            .function("setFootPosition", &PxController::setFootPosition) // ✅
-            .function("setStepOffset", &PxController::setStepOffset) // ✅
-            .function("setNonWalkableMode", optional_override(
-                    [](PxController &controller, int mode) {
-                        return controller.setNonWalkableMode(PxControllerNonWalkableMode::Enum(mode));
-                    })) // ✅
-            .function("setContactOffset", &PxController::setContactOffset) // ✅
-            .function("setUpDirection", &PxController::setUpDirection) // ✅
-            .function("setSlopeLimit", &PxController::setSlopeLimit) // ✅
-            .function("invalidateCache", &PxController::invalidateCache) // ✅
-            .function("resize", &PxController::resize) // ✅
-            .function("invalidateCache", &PxController::invalidateCache) // ✅
-            .function("setQueryFilterData", optional_override(
-                    [](PxController &ctrl, PxFilterData &data) {
-                        PxRigidDynamic *actor = ctrl.getActor();
-                        PxShape *shape;
-                        actor->getShapes(&shape, 1);
-                        shape->setQueryFilterData(data);
-                    })) // ✅
-            .function("getQueryFilterData", optional_override(
-                    [](PxController &ctrl, PxFilterData &data) {
-                        PxRigidDynamic *actor = ctrl.getActor();
-                        PxShape *shape;
-                        actor->getShapes(&shape, 1);
-                        return shape->getQueryFilterData();
-                    }))
-    /** PxCapsuleController ✅ */
+            .function("setFootPosition", &PxController::setFootPosition)  // ✅
+            .function("setStepOffset", &PxController::setStepOffset)      // ✅
+            .function("setNonWalkableMode", optional_override([](PxController &controller, int mode) {
+                          return controller.setNonWalkableMode(PxControllerNonWalkableMode::Enum(mode));
+                      }))                                                   // ✅
+            .function("setContactOffset", &PxController::setContactOffset)  // ✅
+            .function("setUpDirection", &PxController::setUpDirection)      // ✅
+            .function("setSlopeLimit", &PxController::setSlopeLimit)        // ✅
+            .function("invalidateCache", &PxController::invalidateCache)    // ✅
+            .function("resize", &PxController::resize)                      // ✅
+            .function("invalidateCache", &PxController::invalidateCache)    // ✅
+            .function("setQueryFilterData", optional_override([](PxController &ctrl, PxFilterData &data) {
+                          PxRigidDynamic *actor = ctrl.getActor();
+                          PxShape *shape;
+                          actor->getShapes(&shape, 1);
+                          shape->setQueryFilterData(data);
+                      }))  // ✅
+            .function("getQueryFilterData", optional_override([](PxController &ctrl, PxFilterData &data) {
+                          PxRigidDynamic *actor = ctrl.getActor();
+                          PxShape *shape;
+                          actor->getShapes(&shape, 1);
+                          return shape->getQueryFilterData();
+                      }))
+            /** PxCapsuleController ✅ */
             .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
-                                                         static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
-                                                     })) // ✅
+                          static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
+                      }))  // ✅
             .function("setHeight", optional_override([](PxController &ctrl, PxF32 height) {
-                                                         static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
-                                                     })) // ✅
-            .function("setClimbingMode", optional_override(
-                    [](PxController &ctrl, int mode) {
-                        return static_cast<PxCapsuleController *>(&ctrl)->setClimbingMode(PxCapsuleClimbingMode::Enum(mode));
-                    })) // ✅
-    /** PxBoxController ✅ */
+                          static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
+                      }))  // ✅
+            .function("setClimbingMode", optional_override([](PxController &ctrl, int mode) {
+                          return static_cast<PxCapsuleController *>(&ctrl)->setClimbingMode(
+                                  PxCapsuleClimbingMode::Enum(mode));
+                      }))  // ✅
+                           /** PxBoxController ✅ */
             .function("setHalfHeight", optional_override([](PxController &ctrl, PxF32 radius) {
-                                                         static_cast<PxBoxController *>(&ctrl)->setHalfHeight(radius);
-                                                     })) // ✅
+                          static_cast<PxBoxController *>(&ctrl)->setHalfHeight(radius);
+                      }))  // ✅
             .function("setHalfSideExtent", optional_override([](PxController &ctrl, PxF32 height) {
-                                                         static_cast<PxBoxController *>(&ctrl)->setHalfSideExtent(height);
-                                                     })) // ✅
+                          static_cast<PxBoxController *>(&ctrl)->setHalfSideExtent(height);
+                      }))  // ✅
             .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
-                                                         static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
-            })); // ✅
+                          static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
+                      }));  // ✅
 }
 
-
 namespace emscripten {
-    namespace internal {
-        template<>
-        void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
-        }
+namespace internal {
+template <>
+void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
+}
 
 #if PX_DEBUG || PX_PROFILE || PX_CHECKED
-        template<>
-        void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxPvdSceneClient>(PxPvdSceneClient *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxPvdSceneClient>(PxPvdSceneClient *) { /* do nothing */
+}
 
 #endif
 
-        // Physx uses private destructors all over the place for its own reference counting
-        // embind doesn't deal with this well, so we have to override the destructors to keep them private
-        // in the bindings
-        // See: https://github.com/emscripten-core/emscripten/issues/5587
-        template<>
-        void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
-        }
+// Physx uses private destructors all over the place for its own reference counting
+// embind doesn't deal with this well, so we have to override the destructors to keep them private
+// in the bindings
+// See: https://github.com/emscripten-core/emscripten/issues/5587
+template <>
+void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxMaterial>(PxMaterial *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxMaterial>(PxMaterial *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxScene>(PxScene *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxScene>(PxScene *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxRigidDynamic>(PxRigidDynamic *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxRigidDynamic>(PxRigidDynamic *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxRigidBody>(PxRigidBody *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxRigidBody>(PxRigidBody *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxRigidActor>(PxRigidActor *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxRigidActor>(PxRigidActor *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxActor>(PxActor *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxActor>(PxActor *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxShape>(PxShape *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxShape>(PxShape *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxBVHStructure>(PxBVHStructure *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxBVHStructure>(PxBVHStructure *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxRigidStatic>(PxRigidStatic *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxRigidStatic>(PxRigidStatic *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxJoint>(PxJoint *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxJoint>(PxJoint *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxController>(PxController *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxController>(PxController *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxCapsuleController>(PxCapsuleController *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxCapsuleController>(PxCapsuleController *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxControllerDesc>(PxControllerDesc *) { /* do nothing */
-        }
+template <>
+void raw_destructor<PxControllerDesc>(PxControllerDesc *) { /* do nothing */
+}
 
-        template<>
-        void raw_destructor<PxControllerManager>(PxControllerManager *) { /* do nothing */
-        }
-    } // namespace internal
-} // namespace emscripten
+template <>
+void raw_destructor<PxControllerManager>(PxControllerManager *) { /* do nothing */
+}
+}  // namespace internal
+}  // namespace emscripten

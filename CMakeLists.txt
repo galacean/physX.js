@@ -20,5 +20,7 @@ include_directories(
         physx/include/solver
         physx/include/task
         physx/include/vehicle
+        physx/source/foundation/include
+        pxshared/include
         ~/emsdk/upstream/emscripten/system/include
 )

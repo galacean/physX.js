@@ -1,1 +1,10 @@
 .DS_Store
+.idea
+cmake-build-debug
+cmake-build-release
+wasm_build
+
+physx/include/PxConfig.h
+physx/bin
+physx/compiler
+
