@@ -763,6 +763,10 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     class_<PxPlane>("PxPlane").constructor<float, float, float, float>();
 
+    enum_<PxCapsuleClimbingMode::Enum>("PxCapsuleClimbingMode")
+            .value("eCONSTRAINED", PxCapsuleClimbingMode::Enum::eCONSTRAINED)
+            .value("eLAST", PxCapsuleClimbingMode::Enum::eLAST)
+            .value("eEASY", PxCapsuleClimbingMode::Enum::eEASY);
     enum_<PxControllerShapeType::Enum>("PxControllerShapeType")
             .value("eBOX", PxControllerShapeType::Enum::eBOX)
             .value("eCAPSULE", PxControllerShapeType::Enum::eCAPSULE);
@@ -841,6 +845,7 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("setPosition", &PxController::setPosition)  // ✅
             .function("getPosition", &PxController::getPosition)
             .function("setFootPosition", &PxController::setFootPosition)  // ✅
+            .function("getFootPosition", &PxController::getFootPosition)  // ✅
             .function("setStepOffset", &PxController::setStepOffset)      // ✅
             .function("setNonWalkableMode", optional_override([](PxController &controller, int mode) {
                           return controller.setNonWalkableMode(PxControllerNonWalkableMode::Enum(mode));
@@ -850,7 +855,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("setSlopeLimit", &PxController::setSlopeLimit)        // ✅
             .function("invalidateCache", &PxController::invalidateCache)    // ✅
             .function("resize", &PxController::resize)                      // ✅
-            .function("invalidateCache", &PxController::invalidateCache)    // ✅
             .function("setQueryFilterData", optional_override([](PxController &ctrl, PxFilterData &data) {
                           PxRigidDynamic *actor = ctrl.getActor();
                           PxShape *shape;
