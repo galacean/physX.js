@@ -6,7 +6,7 @@ physX (aka PhysX_4.1.1.27006925) compiled by Emscripten SDK.
 
 1. *nix System
 2. Cmake
-3. [emsdk](https://emscripten.org)
+3. [emsdk](https://emscripten.org) **(pass test on version 3.1.0)**
 
 ## Usage
 
