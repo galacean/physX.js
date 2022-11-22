@@ -111,7 +111,10 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
                 call<void>("onContactBegin", cp.shapes[0], cp.shapes[1]);
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                call<void>("onContactEnd", cp.shapes[0], cp.shapes[1]);
+                if (!cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_0) &&
+                    !cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_1)) {
+                    call<void>("onContactEnd", cp.shapes[0], cp.shapes[1]);
+                }
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS) {
                 call<void>("onContactPersist", cp.shapes[0], cp.shapes[1]);
             }
@@ -125,7 +128,10 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             if (tp.status & PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 call<void>("onTriggerBegin", tp.triggerShape, tp.otherShape);
             } else if (tp.status & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                call<void>("onTriggerEnd", tp.triggerShape, tp.otherShape);
+                if (!tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_OTHER) &&
+                    !tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_TRIGGER)) {
+                    call<void>("onTriggerEnd", tp.triggerShape, tp.otherShape);
+                }
             }
         }
     }
