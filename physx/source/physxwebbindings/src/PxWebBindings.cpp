@@ -82,15 +82,14 @@ struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxQueryFilterCallbackWrapper)
 
     PxQueryHitType::Enum postFilter(const PxFilterData &filterData, const PxQueryHit &hit) override {
-        return call<PxQueryHitType::Enum>("postFilter", filterData, hit);
+        return (PxQueryHitType::Enum)call<int>("postFilter", filterData, hit);
     }
 
     PxQueryHitType::Enum preFilter(const PxFilterData &filterData,
                                    const PxShape *shape,
                                    const PxRigidActor *actor,
                                    PxHitFlags &) override {
-        auto hitType = call<PxQueryHitType::Enum>("preFilter", filterData, shape, actor);
-        return hitType;
+        return (PxQueryHitType::Enum)call<int>("preFilter", filterData, shape, actor);
     }
 };
 
@@ -423,10 +422,11 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("raycastSingle",
                       optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
                                            const PxReal distance, PxRaycastHit &hit,
-                                           const PxSceneQueryFilterData &filterData) {
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
                           return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
-                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData);
-                      }))  // ✅
+                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
+                      }),  allow_raw_pointers())  // ✅
             .function("sweep", &PxScene::sweep, allow_raw_pointers())
             .function("sweepAny",
                       optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
