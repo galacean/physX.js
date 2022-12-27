@@ -93,8 +93,8 @@ size of glue file will not change dramatically when you add more binding APIs.
 
 ### Equivalent JavaScript Target
 
-Starting from version 1.38, the default compile target of Emscripten is WebAssembly. You can add ```-s WASM=0``` in
-PhysXWebBindings.cmake to generate the equivalent JS instead. As mentioned in
+Starting from version 1.38, the default compile target of Emscripten is WebAssembly. You can add ```-s SINGLE_FILE=1 -s WASM=0``` in
+PhysXWebBindings.cmake to generate the equivalent single JS instead. As mentioned in
 [the official documentation](https://emscripten.org/docs/getting_started/FAQ.html):
 > output should run exactly the same as a WebAssembly build,
 > but may be larger, start up slower, and run slower,
