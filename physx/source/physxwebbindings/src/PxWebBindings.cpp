@@ -345,7 +345,10 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
-    class_<PxTolerancesScale>("PxTolerancesScale").constructor<>().property("speed", &PxTolerancesScale::speed);
+    class_<PxTolerancesScale>("PxTolerancesScale")
+            .constructor<>()
+            .property("speed", &PxTolerancesScale::speed)
+            .property("length", &PxTolerancesScale::length);
 
     // Define PxsetCMassLocalPoseec3, PxQuat and PxTransform as value objects to allow sumerian Vector3
     // and Quaternion to be used directly without the need to free the memory
@@ -425,8 +428,10 @@ EMSCRIPTEN_BINDINGS(physx) {
                                            const PxSceneQueryFilterData &filterData,
                                            PxQueryFilterCallbackWrapper *callback) {
                           return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
-                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
-                      }),  allow_raw_pointers())  // ✅
+                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData,
+                                                                callback);
+                      }),
+                      allow_raw_pointers())  // ✅
             .function("sweep", &PxScene::sweep, allow_raw_pointers())
             .function("sweepAny",
                       optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
@@ -832,7 +837,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxBoxControllerDesc, base<PxControllerDesc>>("PxBoxControllerDesc")
             .constructor<>()
             .function("isValid", &PxBoxControllerDesc::isValid)
-            .function("setToDefault", &PxBoxControllerDesc::setToDefault)        // ✅
+            .function("setToDefault", &PxBoxControllerDesc::setToDefault)            // ✅
             .property("halfForwardExtent", &PxBoxControllerDesc::halfForwardExtent)  // ✅
             .property("halfHeight", &PxBoxControllerDesc::halfHeight)                // ✅
             .property("halfSideExtent", &PxBoxControllerDesc::halfSideExtent);       // ✅
