@@ -30,6 +30,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     // These are generally system/scene level initialization
     function("PxCreateFoundation", &PxCreateFoundation, allow_raw_pointers());
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
+    function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
     function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
 

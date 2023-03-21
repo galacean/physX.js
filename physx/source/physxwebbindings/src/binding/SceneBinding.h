@@ -145,14 +145,6 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                           return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags,
                                                               hit);
                       }))
-            .function("addController", optional_override([](PxScene &scene, PxController &controller) {
-                          auto actor = controller.getActor();
-                          scene.addActor(*actor);
-                      }))
-            .function("removeController", optional_override([](PxScene &scene, PxController &controller) {
-                          auto actor = controller.getActor();
-                          scene.removeActor(*actor);
-                      }))
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers());  // ✅
