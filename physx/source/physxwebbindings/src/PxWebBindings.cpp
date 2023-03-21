@@ -24,6 +24,7 @@ using namespace emscripten;
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
+    class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
 
     // Global functions
     // These are generally system/scene level initialization
@@ -110,6 +111,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxBaseTask>("PxBaseTask");
     class_<PxDefaultCpuDispatcher, base<PxCpuDispatcher>>("PxDefaultCpuDispatcher");
 
+    class_<PxFilterData>("PxFilterData");
     class_<PxPairFlags>("PxPairFlags");
     class_<PxFilterFlags>("PxFilterFlags");
     enum_<PxPairFlag::Enum>("PxPairFlag");
@@ -128,6 +130,10 @@ void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
 
 template <>
 void raw_destructor<PxBVHStructure>(PxBVHStructure *) { /* do nothing */
+}
+
+template <>
+void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
 }
 
 }  // namespace internal

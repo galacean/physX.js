@@ -84,7 +84,13 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
 
     /** PhysXCharacterController ✅ */
     class_<PxController>("PxController")
-            .function("release", &PxController::release)
+            .function("release", optional_override([](PxController &ctrl) {
+                          PxRigidDynamic *actor = ctrl.getActor();
+                          PxShape *shape;
+                          actor->getShapes(&shape, 1);
+                          free(shape->userData);
+                          ctrl.release();
+                      }))
             .function("isSetControllerCollisionFlag",
                       optional_override([](PxController &controller, PxControllerCollisionFlags &flags, int flag) {
                           return flags.isSet(PxControllerCollisionFlag::Enum(flag));
@@ -126,6 +132,15 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                       }))  // ✅
             .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
                           static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
+                      }))
+            .function("setUUID", optional_override([](PxController &ctrl, uint32_t uuid) {
+                          auto ptr = malloc(sizeof(uint32_t));
+                          memcpy(ptr, &uuid, sizeof(uint32_t));
+
+                          PxRigidDynamic *actor = ctrl.getActor();
+                          PxShape *shape;
+                          actor->getShapes(&shape, 1);
+                          shape->userData = ptr;
                       }));  // ✅
 }
 

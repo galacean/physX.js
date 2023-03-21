@@ -64,6 +64,6 @@ struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
                                    const PxShape *shape,
                                    const PxRigidActor *actor,
                                    PxHitFlags &) override {
-        return (PxQueryHitType::Enum)call<int>("preFilter", filterData, shape, actor);
+        return (PxQueryHitType::Enum)call<int>("preFilter", filterData, getUUID(shape), actor);
     }
 };

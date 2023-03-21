@@ -34,7 +34,13 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
     // setMaterials has 'PxMaterial**' as an input, which is not representable with embind
     // This is overrided to use std::vector<PxMaterial*>
     class_<PxShape>("PxShape")
-            .function("release", &PxShape::release)
+            .function("release", optional_override([](PxShape &shape) {
+                          if (shape.userData) {
+                              free(shape.userData);
+                              shape.userData = nullptr;
+                          }
+                          shape.release();
+                      }))
             .function("setContactOffset", &PxShape::setContactOffset)
             .function("getContactOffset", &PxShape::getContactOffset)
             .function("getFlags", &PxShape::getFlags)
@@ -49,6 +55,14 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
             .function("setMaterials", optional_override([](PxShape &shape, std::vector<PxMaterial *> materials) {
                           return shape.setMaterials(materials.data(), materials.size());
+                      }))
+            .function("setUUID", optional_override([](PxShape &shape, uint32_t uuid) {
+                          auto ptr = malloc(sizeof(uint32_t));
+                          memcpy(ptr, &uuid, sizeof(uint32_t));
+                          shape.userData = ptr;
+                      }))
+            .function("getUUID", optional_override([](PxShape &shape) {
+                          return getUUID(&shape);
                       }));
 
     class_<PxShapeFlags>("PxShapeFlags").constructor<int>().function("isSet", &PxShapeFlags::isSet);

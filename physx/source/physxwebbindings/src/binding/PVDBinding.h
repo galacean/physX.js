@@ -53,8 +53,6 @@ EMSCRIPTEN_BINDINGS(physx_pvd) {
             .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
 }
 
-class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
-
 namespace emscripten {
 namespace internal {
 template <>
