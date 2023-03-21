@@ -6,10 +6,11 @@
 
 #if PX_DEBUG || PX_PROFILE || PX_CHECKED
 
-#include "../BindingHelper.h"
-#include "PxPhysicsAPI.h"
 #include <emscripten.h>
 #include <emscripten/bind.h>
+
+#include "../BindingHelper.h"
+#include "PxPhysicsAPI.h"
 
 using namespace physx;
 using namespace emscripten;
@@ -37,5 +38,38 @@ struct PxPvdTransportWrapper : public wrapper<PxPvdTransport> {
         return call<bool>("write", int(inBytes), int(inLength));
     }
 };
+
+EMSCRIPTEN_BINDINGS(physx_pvd) {
+    class_<PxPvdTransport>("PxPvdTransport")
+            .allow_subclass<PxPvdTransportWrapper>("PxPvdTransportWrapper", constructor<>());
+
+    function("PxCreatePvd", &PxCreatePvd, allow_raw_pointers());
+
+    class_<PxPvdInstrumentationFlags>("PxPvdInstrumentationFlags").constructor<int>();
+    enum_<PxPvdInstrumentationFlag::Enum>("PxPvdInstrumentationFlag")
+            .value("eALL", PxPvdInstrumentationFlag::Enum::eALL)
+            .value("eDEBUG", PxPvdInstrumentationFlag::Enum::eDEBUG)
+            .value("ePROFILE", PxPvdInstrumentationFlag::Enum::ePROFILE)
+            .value("eMEMORY", PxPvdInstrumentationFlag::Enum::eMEMORY);
+}
+
+class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
+
+namespace emscripten {
+namespace internal {
+template <>
+void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
+}
+
+template <>
+void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
+}
+
+template <>
+void raw_destructor<PxPvdSceneClient>(PxPvdSceneClient *) { /* do nothing */
+}
+
+}  // namespace internal
+}  // namespace emscripten
 
 #endif

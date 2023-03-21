@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "../BindingHelper.h"
-#include "PxPhysicsAPI.h"
 #include <emscripten.h>
 #include <emscripten/bind.h>
+
+#include "../BindingHelper.h"
+#include "PxPhysicsAPI.h"
 
 using namespace physx;
 using namespace emscripten;
@@ -75,3 +76,60 @@ PxTriangleMesh *createTriMesh(int vertices,
     PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback());
     return triangleMesh;
 }
+
+EMSCRIPTEN_BINDINGS(physx_cooking) {
+    function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
+
+    class_<PxMeshScale>("PxMeshScale").constructor<const PxVec3 &, const PxQuat &>();
+
+    class_<PxTriangleMesh>("PxTriangleMesh").function("release", &PxTriangleMesh::release);
+    class_<PxTriangleMeshGeometry, base<PxGeometry>>("PxTriangleMeshGeometry")
+            .constructor<PxTriangleMesh *, const PxMeshScale &, PxMeshGeometryFlags>();
+    class_<PxMeshGeometryFlags>("PxMeshGeometryFlags").constructor<int>();
+    enum_<PxMeshGeometryFlag::Enum>("PxMeshGeometryFlag")
+            .value("eDOUBLE_SIDED", PxMeshGeometryFlag::Enum::eDOUBLE_SIDED);
+
+    class_<PxConvexMesh>("PxConvexMesh").function("release", &PxConvexMesh::release);
+    class_<PxConvexMeshGeometry, base<PxGeometry>>("PxConvexMeshGeometry")
+            .constructor<PxConvexMesh *, const PxMeshScale &, PxConvexMeshGeometryFlags>();
+    class_<PxConvexMeshGeometryFlags>("PxConvexMeshGeometryFlags").constructor<int>();
+    enum_<PxConvexMeshGeometryFlag::Enum>("PxConvexMeshGeometryFlag")
+            .value("eTIGHT_BOUNDS", PxConvexMeshGeometryFlag::Enum::eTIGHT_BOUNDS);
+
+    class_<PxCooking>("PxCooking")
+            .function("createConvexMeshWithIndices",
+                      optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, int indices,
+                                           PxU32 indexCount, bool isU16, PxPhysics &physics) {
+                          return createConvexMeshFromBuffer(vertices, vertCount, indices, indexCount, isU16, cooking,
+                                                            physics);
+                      }),
+                      allow_raw_pointers())
+            .function("createConvexMesh",
+                      optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, PxPhysics &physics) {
+                          return createConvexMeshFromBuffer(vertices, vertCount, cooking, physics);
+                      }),
+                      allow_raw_pointers())
+            .function("createTriMesh",
+                      optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, int indices,
+                                           PxU32 indexCount, bool isU16, PxPhysics &physics) {
+                          return createTriMesh(vertices, vertCount, indices, indexCount, isU16, cooking, physics);
+                      }),
+                      allow_raw_pointers());
+    class_<PxCookingParams>("PxCookingParams").constructor<PxTolerancesScale>();
+}
+
+namespace emscripten {
+namespace internal {
+template <>
+void raw_destructor<PxCooking>(PxCooking *) { /* do nothing */
+}
+
+template <>
+void raw_destructor<PxConvexMesh>(PxConvexMesh *) { /* do nothing */
+}
+
+template <>
+void raw_destructor<PxTriangleMesh>(PxTriangleMesh *) { /* do nothing */
+}
+}  // namespace internal
+}  // namespace emscripten
