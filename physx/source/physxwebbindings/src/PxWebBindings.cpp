@@ -1,3 +1,7 @@
+//
+// Created by Oasis on 2023/3/21.
+//
+
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <PsSocket.h>
@@ -5,231 +9,13 @@
 #include <chrono>
 
 #include "PxPhysicsAPI.h"
+#include "binding/SceneBinding.h"
+#include "binding/CookingBinding.h"
+#include "binding/QueryBinding.h"
+#include "binding/PVDBinding.h"
 
 using namespace physx;
 using namespace emscripten;
-
-#if PX_DEBUG || PX_PROFILE || PX_CHECKED
-
-struct PxPvdTransportWrapper : public wrapper<PxPvdTransport> {
-    EMSCRIPTEN_WRAPPER(PxPvdTransportWrapper)
-
-    void unlock() override {}
-
-    void flush() override {}
-
-    void release() override {}
-
-    PxPvdTransport &lock() override { return *this; }
-
-    uint64_t getWrittenDataSize() override { return 0; }
-
-    bool connect() override { return call<bool>("connect"); }
-
-    void disconnect() override { call<void>("disconnect"); }
-
-    bool isConnected() override { return call<bool>("isConnected"); }
-
-    bool write(const uint8_t *inBytes, uint32_t inLength) override {
-        return call<bool>("write", int(inBytes), int(inLength));
-    }
-};
-
-#endif
-
-//----------------------------------------------------------------------------------------------------------------------
-struct PxRaycastCallbackWrapper : public wrapper<PxRaycastCallback> {
-    EMSCRIPTEN_WRAPPER(explicit PxRaycastCallbackWrapper)
-
-    PxAgain processTouches(const PxRaycastHit *buffer, PxU32 nbHits) override {
-        for (PxU32 i = 0; i < nbHits; i++) {
-            bool again = call<PxAgain>("processTouches", buffer[i]);
-            if (!again) {
-                return false;
-            }
-        }
-        return true;
-    }
-};
-
-PxRaycastHit *allocateRaycastHitBuffers(PxU32 nb) {
-    auto *myArray = new PxRaycastHit[nb];
-    return myArray;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-struct PxSweepCallbackWrapper : public wrapper<PxSweepCallback> {
-    EMSCRIPTEN_WRAPPER(explicit PxSweepCallbackWrapper)
-
-    PxAgain processTouches(const PxSweepHit *buffer, PxU32 nbHits) override {
-        for (PxU32 i = 0; i < nbHits; i++) {
-            bool again = call<PxAgain>("processTouches", buffer[i]);
-            if (!again) {
-                return false;
-            }
-        }
-        return true;
-    }
-};
-
-PxSweepHit *allocateSweepHitBuffers(PxU32 nb) {
-    auto *myArray = new PxSweepHit[nb];
-    return myArray;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
-    EMSCRIPTEN_WRAPPER(explicit PxQueryFilterCallbackWrapper)
-
-    PxQueryHitType::Enum postFilter(const PxFilterData &filterData, const PxQueryHit &hit) override {
-        return (PxQueryHitType::Enum)call<int>("postFilter", filterData, hit);
-    }
-
-    PxQueryHitType::Enum preFilter(const PxFilterData &filterData,
-                                   const PxShape *shape,
-                                   const PxRigidActor *actor,
-                                   PxHitFlags &) override {
-        return (PxQueryHitType::Enum)call<int>("preFilter", filterData, shape, actor);
-    }
-};
-
-//----------------------------------------------------------------------------------------------------------------------
-struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
-    EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
-
-    void onConstraintBreak(PxConstraintInfo *, PxU32) override {}
-
-    void onWake(PxActor **, PxU32) override {}
-
-    void onSleep(PxActor **, PxU32) override {}
-
-    void onContact(const PxContactPairHeader &, const PxContactPair *pairs, PxU32 nbPairs) override {
-        for (PxU32 i = 0; i < nbPairs; i++) {
-            const PxContactPair &cp = pairs[i];
-
-            if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
-                call<void>("onContactBegin", cp.shapes[0], cp.shapes[1]);
-            } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (!cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_0) &&
-                    !cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_1)) {
-                    call<void>("onContactEnd", cp.shapes[0], cp.shapes[1]);
-                }
-            } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS) {
-                call<void>("onContactPersist", cp.shapes[0], cp.shapes[1]);
-            }
-        }
-    }
-
-    void onTrigger(PxTriggerPair *pairs, PxU32 count) override {
-        for (PxU32 i = 0; i < count; i++) {
-            const PxTriggerPair &tp = pairs[i];
-
-            if (tp.status & PxPairFlag::eNOTIFY_TOUCH_FOUND) {
-                call<void>("onTriggerBegin", tp.triggerShape, tp.otherShape);
-            } else if (tp.status & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (!tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_OTHER) &&
-                    !tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_TRIGGER)) {
-                    call<void>("onTriggerEnd", tp.triggerShape, tp.otherShape);
-                }
-            }
-        }
-    }
-
-    void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
-};
-
-PxFilterFlags DefaultFilterShader(PxFilterObjectAttributes attributes0,
-                                  PxFilterData,
-                                  PxFilterObjectAttributes attributes1,
-                                  PxFilterData,
-                                  PxPairFlags &pairFlags,
-                                  const void *,
-                                  PxU32) {
-    if (PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1)) {
-        pairFlags = PxPairFlag::eTRIGGER_DEFAULT | PxPairFlag::eDETECT_CCD_CONTACT;
-        return PxFilterFlag::eDEFAULT;
-    }
-    pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_LOST |
-                PxPairFlag::eNOTIFY_TOUCH_PERSISTS | PxPairFlag::eDETECT_CCD_CONTACT;
-    return PxFilterFlag::eDEFAULT;
-}
-
-PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
-    auto *sceneDesc = new PxSceneDesc(scale);
-    sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
-    sceneDesc->cpuDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
-    sceneDesc->filterShader = DefaultFilterShader;
-    sceneDesc->simulationEventCallback = callback;
-    sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
-    sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
-    sceneDesc->flags |= PxSceneFlag::eENABLE_CCD;
-    return sceneDesc;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-PxConvexMesh *createConvexMeshFromBuffer(int vertices,
-                                         PxU32 vertCount,
-                                         int indices,
-                                         PxU32 indexCount,
-                                         bool isU16,
-                                         PxCooking &cooking,
-                                         PxPhysics &physics) {
-    PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vertCount;
-    convexDesc.points.stride = sizeof(PxVec3);
-    convexDesc.points.data = (PxVec3 *)vertices;
-    if (isU16) {
-        convexDesc.indices.stride = 3 * sizeof(PxU16);
-        convexDesc.indices.data = (PxU16 *)indices;
-        convexDesc.flags = PxConvexFlag::e16_BIT_INDICES;
-    } else {
-        convexDesc.indices.stride = 3 * sizeof(PxU32);
-        convexDesc.indices.data = (PxU32 *)indices;
-    }
-    convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
-
-    return convexMesh;
-}
-
-PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCooking &cooking, PxPhysics &physics) {
-    PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vertCount;
-    convexDesc.points.stride = sizeof(PxVec3);
-    convexDesc.points.data = (PxVec3 *)vertices;
-    convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
-
-    return convexMesh;
-}
-
-PxTriangleMesh *createTriMesh(int vertices,
-                              PxU32 vertCount,
-                              int indices,
-                              PxU32 indexCount,
-                              bool isU16,
-                              PxCooking &cooking,
-                              PxPhysics &physics) {
-    PxTriangleMeshDesc meshDesc;
-    meshDesc.points.count = vertCount;
-    meshDesc.points.stride = sizeof(PxVec3);
-    meshDesc.points.data = (PxVec3 *)vertices;
-
-    meshDesc.triangles.count = indexCount;
-    if (isU16) {
-        meshDesc.triangles.stride = 3 * sizeof(PxU16);
-        meshDesc.triangles.data = (PxU16 *)indices;
-        meshDesc.flags = PxMeshFlag::e16_BIT_INDICES;
-    } else {
-        meshDesc.triangles.stride = 3 * sizeof(PxU32);
-        meshDesc.triangles.data = (PxU32 *)indices;
-    }
-
-    PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback());
-    return triangleMesh;
-}
 
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
@@ -606,8 +392,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("getPlaneGeometry", &PxShape::getPlaneGeometry, allow_raw_pointers())
             .function("getCapsuleGeometry", &PxShape::getCapsuleGeometry, allow_raw_pointers())
             .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
-            .function("setQueryFilterData", &PxShape::setQueryFilterData)
-            .function("getQueryFilterData", &PxShape::getQueryFilterData, allow_raw_pointers())
             .function("setMaterials", optional_override([](PxShape &shape, std::vector<PxMaterial *> materials) {
                           return shape.setMaterials(materials.data(), materials.size());
                       }));
@@ -711,12 +495,6 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxBaseTask>("PxBaseTask");
     class_<PxDefaultCpuDispatcher, base<PxCpuDispatcher>>("PxDefaultCpuDispatcher");
 
-    class_<PxFilterData>("PxFilterData")
-            .constructor<PxU32, PxU32, PxU32, PxU32>()
-            .property("word0", &PxFilterData::word0)
-            .property("word1", &PxFilterData::word1)
-            .property("word2", &PxFilterData::word2)
-            .property("word3", &PxFilterData::word3);
     class_<PxPairFlags>("PxPairFlags");
     class_<PxFilterFlags>("PxFilterFlags");
     enum_<PxPairFlag::Enum>("PxPairFlag");
@@ -734,17 +512,7 @@ EMSCRIPTEN_BINDINGS(physx) {
                           actor.getShapes(&shape, 1);
                           return shape;
                       }),
-                      allow_raw_pointers())
-            .function("setQueryFilterData", optional_override([](PxRigidActor &actor, PxFilterData &data) {
-                          PxShape *shape;
-                          actor.getShapes(&shape, 1);
-                          shape->setQueryFilterData(data);
-                      }))
-            .function("getQueryFilterData", optional_override([](PxRigidActor &actor, PxFilterData &data) {
-                          PxShape *shape;
-                          actor.getShapes(&shape, 1);
-                          return shape->getQueryFilterData();
-                      }));
+                      allow_raw_pointers());
     /** PhysXStaticCollider ✅ */
     class_<PxRigidStatic, base<PxRigidActor>>("PxRigidStatic");
     /** PhysXDynamicCollider ✅ */
@@ -972,18 +740,6 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("setSlopeLimit", &PxController::setSlopeLimit)        // ✅
             .function("invalidateCache", &PxController::invalidateCache)    // ✅
             .function("resize", &PxController::resize)                      // ✅
-            .function("setQueryFilterData", optional_override([](PxController &ctrl, PxFilterData &data) {
-                          PxRigidDynamic *actor = ctrl.getActor();
-                          PxShape *shape;
-                          actor->getShapes(&shape, 1);
-                          shape->setQueryFilterData(data);
-                      }))  // ✅
-            .function("getQueryFilterData", optional_override([](PxController &ctrl, PxFilterData &data) {
-                          PxRigidDynamic *actor = ctrl.getActor();
-                          PxShape *shape;
-                          actor->getShapes(&shape, 1);
-                          return shape->getQueryFilterData();
-                      }))
             /** PxCapsuleController ✅ */
             .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
                           static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
