@@ -53,8 +53,19 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .function("getPlaneGeometry", &PxShape::getPlaneGeometry, allow_raw_pointers())
             .function("getCapsuleGeometry", &PxShape::getCapsuleGeometry, allow_raw_pointers())
             .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
-            .function("setMaterials", optional_override([](PxShape &shape, std::vector<PxMaterial *> materials) {
-                          return shape.setMaterials(materials.data(), materials.size());
+            .function("setMaterial", optional_override([](PxShape &shape, PxMaterial& material) {
+                          std::vector<PxMaterial*> materialsVector;
+                          materialsVector.push_back(&material);
+                          return shape.setMaterials(materialsVector.data(), materialsVector.size());
+                      }), allow_raw_pointers())
+            .function("setMaterials", optional_override([](PxShape &shape, val materials) {
+                          int length = materials["length"].as<int>();
+                          std::vector<PxMaterial*> materialsVector;
+                          for(int i = 0; i < length; i++) {
+                            PxMaterial* ptr = reinterpret_cast<PxMaterial*>((materials[i]["$$"]["ptr"]).as<int>());
+                            materialsVector.push_back(ptr);
+                          }
+                          return shape.setMaterials(materialsVector.data(), materialsVector.size());
                       }))
             .function("setUUID", optional_override([](PxShape &shape, uint32_t uuid) {
                           auto ptr = malloc(sizeof(uint32_t));

@@ -29,7 +29,8 @@ STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWERCASE)
 
 SET(CMAKE_STATIC_LIBRARY_PREFIX "")
 
-SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
+# SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -msimd128 ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
+SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
 
 SET(CMAKE_CXX_FLAGS ${PHYSX_CXX_FLAGS})
 
