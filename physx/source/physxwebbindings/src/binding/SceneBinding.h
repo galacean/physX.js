@@ -64,6 +64,9 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     sceneDesc->cpuDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
     sceneDesc->filterShader = physx::simulationFilterShader;
     sceneDesc->simulationEventCallback = callback;
+    sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
+    sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
+    sceneDesc->flags |= PxSceneFlag::eENABLE_CCD;
     return sceneDesc;
 }
 

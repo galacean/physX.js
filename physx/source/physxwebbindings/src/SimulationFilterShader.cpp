@@ -228,7 +228,7 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
         return PxFilterFlag::eSUPPRESS;
     }
 
-    pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
+    pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
                 PxPairFlag::eNOTIFY_TOUCH_LOST;
 
     return PxFilterFlags();
