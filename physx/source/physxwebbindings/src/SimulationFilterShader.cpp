@@ -229,9 +229,9 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
     }
 
     pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
-                PxPairFlag::eNOTIFY_TOUCH_LOST;
+                PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_CONTACT_POINTS;
 
-    return PxFilterFlags();
+    return PxFilterFlag::eDEFAULT;
 }
 
 bool physx::getGroupCollisionFlag(const PxU16 group1, const PxU16 group2) {

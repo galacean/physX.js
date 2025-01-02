@@ -7,7 +7,6 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include "../BindingHelper.h"
 #include "PxPhysicsAPI.h"
 
 using namespace physx;
@@ -23,7 +22,9 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
     enum_<PxActorFlag::Enum>("PxActorFlag").value("eDISABLE_GRAVITY", PxActorFlag::Enum::eDISABLE_GRAVITY);
 
     /** PhysXCollider ✅ */
-    class_<PxActor>("PxActor").function("setActorFlag", &PxActor::setActorFlag).function("release", &PxActor::release);
+    class_<PxActor>("PxActor")
+            .function("setActorFlag", &PxActor::setActorFlag)
+            .function("release", &PxActor::release);
     class_<PxRigidActor, base<PxActor>>("PxRigidActor")
             .function("attachShape", &PxRigidActor::attachShape)                            // ✅
             .function("detachShape", &PxRigidActor::detachShape)                            // ✅
@@ -56,7 +57,9 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("setCMassLocalPose", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
                           return body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
                       }))                                                                    // ✅
+            .function("getCMassLocalPose", &PxRigidBody::getCMassLocalPose)                                                                    // ✅
             .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor)  // ✅
+            .function("getMassSpaceInertiaTensor", &PxRigidBody::getMassSpaceInertiaTensor)  // ✅
             .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque) {
                           body.addTorque(torque, PxForceMode::eFORCE, true);
                       }))  // ✅
@@ -93,8 +96,8 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
                       }))
             .function("setRigidBodyFlag", &PxRigidBody::setRigidBodyFlag)
-            .function("getRigidBodyFlags", optional_override([](PxRigidBody &body) {
-                          return (bool)(body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC);
+            .function("getRigidBodyFlags", optional_override([](PxRigidBody &body, PxRigidBodyFlag::Enum flag) {
+                          return (bool)(body.getRigidBodyFlags() & flag);
                       }))  // ✅
             .function("setMassAndUpdateInertia", optional_override([](PxRigidBody &body, PxReal mass) {
                           return PxRigidBodyExt::setMassAndUpdateInertia(body, mass, nullptr, false);
@@ -120,8 +123,7 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
     class_<PxRigidBodyFlags>("PxRigidBodyFlags");
     enum_<PxRigidBodyFlag::Enum>("PxRigidBodyFlag")
             .value("eKINEMATIC", PxRigidBodyFlag::Enum::eKINEMATIC)
-            .value("eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES",
-                   PxRigidBodyFlag::Enum::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES)
+            .value("eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES",PxRigidBodyFlag::Enum::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES)
             .value("eENABLE_CCD", PxRigidBodyFlag::Enum::eENABLE_CCD)
             .value("eENABLE_CCD_FRICTION", PxRigidBodyFlag::Enum::eENABLE_CCD_FRICTION)
             .value("eENABLE_POSE_INTEGRATION_PREVIEW", PxRigidBodyFlag::Enum::eENABLE_POSE_INTEGRATION_PREVIEW)

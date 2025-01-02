@@ -7,7 +7,6 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include "../BindingHelper.h"
 #include "PxPhysicsAPI.h"
 
 using namespace physx;
@@ -50,6 +49,8 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
             .function("setProjectionLinearTolerance", &PxSphericalJoint::setProjectionLinearTolerance);  // ✅
     /* PhysXHingeJoint ✅ */
     class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint")
+            .function("getAngle", &PxRevoluteJoint::getAngle)        // ✅
+            .function("getVelocity", &PxRevoluteJoint::getVelocity)  // ✅
             .function("setHardLimit", optional_override([](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit,
                                                            PxReal contactDist) {
                           joint.setLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
