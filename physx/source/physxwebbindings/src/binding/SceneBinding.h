@@ -14,6 +14,27 @@
 using namespace physx;
 using namespace emscripten;
 
+struct PxContactPairWrapper {
+    const PxContactPair* pair;
+    uint32_t shape0Id;
+    uint32_t shape1Id;
+    PxU8 contactCount;
+
+
+    PxContactPairWrapper(const PxContactPair* p) : pair(p) {
+        shape0Id = getUUID(p->shapes[0]);
+        shape1Id = getUUID(p->shapes[1]);
+        contactCount = p->contactCount;
+        pair = p;
+    }
+
+    std::vector<PxContactPairPoint> getContacts() {
+      std::vector<PxContactPairPoint> contactPoints(contactCount);
+      pair->extractContacts(contactPoints.data(), contactCount);
+      return contactPoints;
+    }
+};
+
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
 
@@ -26,16 +47,17 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onContact(const PxContactPairHeader &, const PxContactPair *pairs, PxU32 nbPairs) override {
         for (PxU32 i = 0; i < nbPairs; i++) {
             const PxContactPair &cp = pairs[i];
-
+            PxContactPairWrapper wrapper(&cp);
             if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
-                call<void>("onContactBegin", getUUID(cp.shapes[0]), getUUID(cp.shapes[1]));
+                call<void>("onContactBegin", wrapper);
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 if (!cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_0) &&
                     !cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_1)) {
-                    call<void>("onContactEnd", getUUID(cp.shapes[0]), getUUID(cp.shapes[1]));
+                    call<void>("onContactEnd", wrapper);
+;
                 }
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS) {
-                call<void>("onContactPersist", getUUID(cp.shapes[0]), getUUID(cp.shapes[1]));
+                call<void>("onContactPersist", wrapper);
             }
         }
     }
@@ -73,6 +95,21 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
 EMSCRIPTEN_BINDINGS(physx_scene) {
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers());
     function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
+
+    class_<PxContactPairPoint>("PxContactPairPoint")
+            .property("position", &PxContactPairPoint::position)
+            .property("normal", &PxContactPairPoint::normal)
+            .property("impulse", &PxContactPairPoint::impulse)
+            .property("separation", &PxContactPairPoint::separation);
+    register_vector<PxContactPairPoint>("VectorPxContactPairPoint");
+
+            
+    class_<PxContactPairWrapper>("PxContactPairWrapper")
+            .constructor<const PxContactPair*>()
+            .property("shape0Id", &PxContactPairWrapper::shape0Id)
+            .property("shape1Id", &PxContactPairWrapper::shape1Id)
+            .property("contactCount", &PxContactPairWrapper::contactCount)
+            .function("getContacts", &PxContactPairWrapper::getContacts, allow_raw_pointers());
 
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
             .allow_subclass<PxSimulationEventCallbackWrapper>("PxSimulationEventCallbackWrapper");

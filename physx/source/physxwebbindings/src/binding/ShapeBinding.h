@@ -27,8 +27,12 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .function("setDynamicFriction", &PxMaterial::setDynamicFriction)
             .function("setStaticFriction", &PxMaterial::setStaticFriction)
             .function("setRestitution", &PxMaterial::setRestitution)
-            .function("setFrictionCombineMode", &PxMaterial::setFrictionCombineMode)
-            .function("setRestitutionCombineMode", &PxMaterial::setRestitutionCombineMode);
+            .function("setFrictionCombineMode", optional_override([](PxMaterial &material, int mode) {
+                          return material.setFrictionCombineMode(PxCombineMode::Enum(mode));
+                      }))
+            .function("setRestitutionCombineMode", optional_override([](PxMaterial &material, int mode) {
+                          return material.setRestitutionCombineMode(PxCombineMode::Enum(mode));
+                      }));
 
     register_vector<PxMaterial *>("VectorPxMaterial");
     // setMaterials has 'PxMaterial**' as an input, which is not representable with embind
@@ -40,6 +44,14 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
                               shape.userData = nullptr;
                           }
                           shape.release();
+                      }))
+            .function("getGlobalPose", optional_override([](PxShape &shape) {
+                          PxActor* actor = shape.getActor();
+                          if (actor){
+                            return shape.getActor()->getGlobalPose() * shape.getLocalPose();
+                          } else {
+                            return shape.getLocalPose();
+                          }
                       }))
             .function("setContactOffset", &PxShape::setContactOffset)
             .function("getContactOffset", &PxShape::getContactOffset)
@@ -84,7 +96,16 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .value("eVISUALIZATION", PxShapeFlag::Enum::eVISUALIZATION);
 
     /** PhysXColliderShape ✅ */
-    class_<PxGeometry>("PxGeometry");
+    class_<PxGeometry>("PxGeometry")
+            .function("pointDistance", optional_override([](PxGeometry &geometry,
+            PxTransform &pose, PxVec3 &point) {
+                PxVec3 closestPoint = PxVec3(0.0f);
+                PxReal distance = PxGeometryQuery::pointDistance(point, geometry, pose, &closestPoint);
+                          val res = val::object();
+                          res.set("distance", distance);
+                          res.set("closestPoint", closestPoint);
+                          return res;
+                      }));
     /** PhysXBoxColliderShape ✅ */
     class_<PxBoxGeometry, base<PxGeometry>>("PxBoxGeometry")
             .constructor<>()
