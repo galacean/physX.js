@@ -113,26 +113,26 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
             // .function("invalidateCache", &PxController::invalidateCache)    // ✅
             // .function("resize", &PxController::resize)                      // ✅
             /** PxCapsuleController ✅ */
-            // .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
-            //               static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
-            //           }))  // ✅
-            // .function("setHeight", optional_override([](PxController &ctrl, PxF32 height) {
-            //               static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
-            //           }))  // ✅
+            .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
+                          static_cast<PxCapsuleController *>(&ctrl)->setRadius(radius);
+                      }))  // ✅
+            .function("setHeight", optional_override([](PxController &ctrl, PxF32 height) {
+                          static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
+                      }))  // ✅
             // .function("setClimbingMode", optional_override([](PxController &ctrl, int mode) {
             //               return static_cast<PxCapsuleController *>(&ctrl)->setClimbingMode(
             //                       PxCapsuleClimbingMode::Enum(mode));
             //           }))  // ✅
             //                /** PxBoxController ✅ */
-            // .function("setHalfHeight", optional_override([](PxController &ctrl, PxF32 radius) {
-            //               static_cast<PxBoxController *>(&ctrl)->setHalfHeight(radius);
-            //           }))  // ✅
-            // .function("setHalfSideExtent", optional_override([](PxController &ctrl, PxF32 height) {
-            //               static_cast<PxBoxController *>(&ctrl)->setHalfSideExtent(height);
-            //           }))  // ✅
-            // .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
-            //               static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
-            //           }))
+            .function("setHalfHeight", optional_override([](PxController &ctrl, PxF32 radius) {
+                          static_cast<PxBoxController *>(&ctrl)->setHalfHeight(radius);
+                      }))  // ✅
+            .function("setHalfSideExtent", optional_override([](PxController &ctrl, PxF32 height) {
+                          static_cast<PxBoxController *>(&ctrl)->setHalfSideExtent(height);
+                      }))  // ✅
+            .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
+                          static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
+                      }))
             .function("setUUID", optional_override([](PxController &ctrl, uint32_t uuid) {
                           auto ptr = malloc(sizeof(uint32_t));
                           memcpy(ptr, &uuid, sizeof(uint32_t));
