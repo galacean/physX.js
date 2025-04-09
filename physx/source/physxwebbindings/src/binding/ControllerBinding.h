@@ -14,10 +14,10 @@ using namespace physx;
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(physx_controller) {
-    // enum_<PxCapsuleClimbingMode::Enum>("PxCapsuleClimbingMode")
-    //         .value("eCONSTRAINED", PxCapsuleClimbingMode::Enum::eCONSTRAINED)
-    //         .value("eLAST", PxCapsuleClimbingMode::Enum::eLAST)
-    //         .value("eEASY", PxCapsuleClimbingMode::Enum::eEASY);
+    enum_<PxCapsuleClimbingMode::Enum>("PxCapsuleClimbingMode")
+            .value("eCONSTRAINED", PxCapsuleClimbingMode::Enum::eCONSTRAINED)
+            .value("eLAST", PxCapsuleClimbingMode::Enum::eLAST)
+            .value("eEASY", PxCapsuleClimbingMode::Enum::eEASY);
     // enum_<PxControllerShapeType::Enum>("PxControllerShapeType")
     //         .value("eBOX", PxControllerShapeType::Enum::eBOX)
     //         .value("eCAPSULE", PxControllerShapeType::Enum::eCAPSULE);
@@ -132,7 +132,7 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                       }))  // ✅
             .function("setHalfForwardExtent", optional_override([](PxController &ctrl, PxF32 height) {
                           static_cast<PxBoxController *>(&ctrl)->setHalfForwardExtent(height);
-                      }))
+                      })) // ✅
             .function("setUUID", optional_override([](PxController &ctrl, uint32_t uuid) {
                           auto ptr = malloc(sizeof(uint32_t));
                           memcpy(ptr, &uuid, sizeof(uint32_t));
