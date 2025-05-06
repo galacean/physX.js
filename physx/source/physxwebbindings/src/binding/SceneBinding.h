@@ -96,6 +96,21 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers()); // ✅
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
+    function("getGroupCollisionFlag", &physx::getGroupCollisionFlag);
+    function("setGroupCollisionFlag", &physx::setGroupCollisionFlag);
+    function("getGroup", &physx::getGroup, allow_raw_pointers());
+    function("setGroup", &physx::setGroup, allow_raw_pointers());
+
+    // GroupsMask filter
+    // function("getGroupsMask", &physx::getGroupsMask, allow_raw_pointers());
+    // function("setGroupsMask", &physx::setGroupsMask, allow_raw_pointers());
+    // function("getFilterOps", &physx::getFilterOps);
+    // function("setFilterOps", &physx::setFilterOps);
+    // function("getFilterBool", &physx::getFilterBool);
+    // function("setFilterBool", &physx::setFilterBool);
+    // function("getFilterConstants", &physx::getFilterConstants);
+    // function("setFilterConstants", &physx::setFilterConstants);
+
     class_<PxContactPairPoint>("PxContactPairPoint")
             .property("position", &PxContactPairPoint::position)
             .property("normal", &PxContactPairPoint::normal)
@@ -171,7 +186,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                                                 callback);
                       }),
                       allow_raw_pointers())  // ✅
-            // .function("sweep", &PxScene::sweep, allow_raw_pointers())
+            .function("sweep", &PxScene::sweep, allow_raw_pointers())
             // .function("sweepAny",
             //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
             //                                const PxVec3 &unitDir, const PxReal distance, PxSceneQueryFlags queryFlags) {

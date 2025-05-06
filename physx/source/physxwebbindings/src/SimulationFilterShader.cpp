@@ -201,35 +201,38 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
     PX_UNUSED(constantBlock);
     PX_UNUSED(constantBlockSize);
 
+    // Collision Group
+    PxU32 group0 = filterData0.word0;
+    PxU32 group1 = filterData1.word0;
+    if (group0 >= GROUP_SIZE || group1 >= GROUP_SIZE || !gCollisionTable[group0][group1]()) {
+        return PxFilterFlag::eSUPPRESS;
+    }
+
+    // Filter function
+    // GroupsMask g0 = convert(filterData0);
+    // GroupsMask g1 = convert(filterData1);
+
+    // GroupsMask g0k0;
+    // gTable[gFilterOps[0]](g0k0, g0, gFilterConstants[0]);
+    // GroupsMask g1k1;
+    // gTable[gFilterOps[1]](g1k1, g1, gFilterConstants[1]);
+    // GroupsMask final;
+    // gTable[gFilterOps[2]](final, g0k0, g1k1);
+
+    // bool r = final.bits0 || final.bits1 || final.bits2 || final.bits3;
+    // if (r != gFilterBool) {
+    //     return PxFilterFlag::eSUPPRESS;
+    // }
+
     // let triggers through
     if (PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1)) {
         pairFlags = PxPairFlag::eTRIGGER_DEFAULT;
         return PxFilterFlags();
     }
 
-    // Collision Group
-    if (!gCollisionTable[filterData0.word0][filterData1.word0]()) {
-        return PxFilterFlag::eSUPPRESS;
-    }
-
-    // Filter function
-    GroupsMask g0 = convert(filterData0);
-    GroupsMask g1 = convert(filterData1);
-
-    GroupsMask g0k0;
-    gTable[gFilterOps[0]](g0k0, g0, gFilterConstants[0]);
-    GroupsMask g1k1;
-    gTable[gFilterOps[1]](g1k1, g1, gFilterConstants[1]);
-    GroupsMask final;
-    gTable[gFilterOps[2]](final, g0k0, g1k1);
-
-    bool r = final.bits0 || final.bits1 || final.bits2 || final.bits3;
-    if (r != gFilterBool) {
-        return PxFilterFlag::eSUPPRESS;
-    }
-
     pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
-                PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_CONTACT_POINTS;
+                PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_CONTACT_POINTS | 
+                PxPairFlag::eDETECT_CCD_CONTACT | PxPairFlag::eNOTIFY_TOUCH_CCD;
 
     return PxFilterFlag::eDEFAULT;
 }
