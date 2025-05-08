@@ -187,7 +187,8 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             //           }))
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
-                      allow_raw_pointers());  // ✅
+                      allow_raw_pointers())  // ✅
+            .function("release", &PxScene::release); // ✅
 
     class_<PxLocationHit>("PxLocationHit")
             .property("position", &PxLocationHit::position)
