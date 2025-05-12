@@ -157,10 +157,13 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                       }))  // ✅
             // .function("raycast", &PxScene::raycast, allow_raw_pointers())
             // .function("raycastAny", optional_override([](const PxScene &scene, const PxVec3 &origin,
-            //                                              const PxVec3 &unitDir, const PxReal distance) {
-            //               PxSceneQueryHit hit;
-            //               return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit);
-            //           }))
+            //                                              const PxVec3 &unitDir, const PxReal distance, PxRaycastHit &hit,
+            //                                              const PxSceneQueryFilterData &filterData,
+            //                                              PxQueryFilterCallbackWrapper *callback) {
+            //               return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit, filterData,
+            //                                                  callback);
+            //           }),
+            //           allow_raw_pointers())  // ✅
             .function("raycastSingle",
                       optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
                                            const PxReal distance, PxRaycastHit &hit,
@@ -171,6 +174,33 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                                                 callback);
                       }),
                       allow_raw_pointers())  // ✅
+            .function("sweepSingle",
+              optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+                                    const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit, 
+                                    const PxSceneQueryFilterData &filterData,
+                                    PxQueryFilterCallbackWrapper *callback) {
+                          return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance,
+                                                            PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
+                      }),
+                      allow_raw_pointers())  // ✅
+            // .function("sweepAny",
+            //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+            //                                const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit,
+            //                                const PxSceneQueryFilterData &filterData,
+            //                                PxQueryFilterCallbackWrapper *callback) {
+            //               return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance,
+            //                                         PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
+            //           }),
+            //           allow_raw_pointers())  // ✅
+            .function("overlapAny",
+                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+                                           PxOverlapHit &hit,
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
+                          return PxSceneQueryExt::overlapAny(scene, geometry, pose, hit, filterData, callback);
+                      }),
+                      allow_raw_pointers())  // ✅
+           
             // .function("sweep", &PxScene::sweep, allow_raw_pointers())
             // .function("sweepAny",
             //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
@@ -178,18 +208,10 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             //               PxSweepHit hit;
             //               return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance, queryFlags, hit);
             //           }))
-            // .function("sweepSingle",
-            //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-            //                                const PxVec3 &unitDir, const PxReal distance, PxSceneQueryFlags outputFlags,
-            //                                PxSweepHit &hit) {
-            //               return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance, outputFlags,
-            //                                                   hit);
-            //           }))
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers())  // ✅
             .function("release", &PxScene::release); // ✅
-
     class_<PxLocationHit>("PxLocationHit")
             .property("position", &PxLocationHit::position)
             .property("normal", &PxLocationHit::normal)
@@ -197,7 +219,13 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     class_<PxRaycastHit, base<PxLocationHit>>("PxRaycastHit")
             .constructor<>()
             .function("getShape", optional_override([](PxRaycastHit &block) { return block.shape; }),
-                      allow_raw_pointers()); // ✅
+                      allow_raw_pointers()) // ✅
+            .function("getActor", optional_override([](PxRaycastHit &block) { return block.actor; }),
+                      allow_raw_pointers()) // ✅
+            .function("getDistance", optional_override([](PxRaycastHit &block) { return block.distance; }))
+            .function("getNormal", optional_override([](PxRaycastHit &block) { return block.normal; }))
+            .function("getPosition", optional_override([](PxRaycastHit &block) { return block.position; }))
+            .function("getFaceIndex", optional_override([](PxRaycastHit &block) { return block.faceIndex; }));
     // class_<PxRaycastCallback>("PxRaycastCallback")
     //         .property("block", &PxRaycastCallback::block)
     //         .property("hasBlock", &PxRaycastCallback::hasBlock)
@@ -206,12 +234,17 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
 
     // function("allocateRaycastHitBuffers", &allocateRaycastHitBuffers, allow_raw_pointers());
 
-    // class_<PxSweepHit, base<PxLocationHit>>("PxSweepHit")
-    //         .constructor<>()
-    //         .function("getShape", optional_override([](PxSweepHit &block) { return block.shape; }),
-    //                   allow_raw_pointers())
-    //         .function("getActor", optional_override([](PxSweepHit &block) { return block.actor; }),
-    //                   allow_raw_pointers());
+    class_<PxSweepHit, base<PxLocationHit>>("PxSweepHit")
+            .constructor<>()
+            .function("getShape", optional_override([](PxSweepHit &block) { return block.shape; }),
+                      allow_raw_pointers())
+            .function("getActor", optional_override([](PxSweepHit &block) { return block.actor; }),
+                      allow_raw_pointers())
+            .function("getDistance", optional_override([](PxSweepHit &block) { return block.distance; }))
+            .function("getNormal", optional_override([](PxSweepHit &block) { return block.normal; }))
+            .function("getPosition", optional_override([](PxSweepHit &block) { return block.position; }))
+            .function("getFaceIndex", optional_override([](PxSweepHit &block) { return block.faceIndex; }));
+                    
     // class_<PxSweepCallback>("PxSweepCallback")
     //         .property("block", &PxSweepCallback::block)
     //         .property("hasBlock", &PxSweepCallback::hasBlock)
@@ -221,17 +254,14 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     // function("allocateSweepHitBuffers", &allocateSweepHitBuffers, allow_raw_pointers());
 
     // class_<PxHitFlags>("PxHitFlags").constructor<int>();
-    // enum_<PxHitFlag::Enum>("PxHitFlag")
-    //         .value("eDEFAULT", PxHitFlag::Enum::eDEFAULT)
-    //         .value("eMESH_BOTH_SIDES", PxHitFlag::Enum::eMESH_BOTH_SIDES)
-    //         .value("eMESH_MULTIPLE", PxHitFlag::Enum::eMESH_MULTIPLE);  
-
     class_<PxQueryFilterData>("PxQueryFilterData").constructor<>().property("flags", &PxQueryFilterData::flags);
     class_<PxQueryFlags>("PxQueryFlags").constructor<int>();
     enum_<PxQueryFlag::Enum>("PxQueryFlag")
-            .value("eANY_HIT", PxQueryFlag::Enum::eANY_HIT)
-            .value("eDYNAMIC", PxQueryFlag::Enum::eDYNAMIC)
             .value("eSTATIC", PxQueryFlag::Enum::eSTATIC)
+            .value("eDYNAMIC", PxQueryFlag::Enum::eDYNAMIC)
+            .value("ePREFILTER", PxQueryFlag::Enum::ePREFILTER)
+            .value("ePOSTFILTER", PxQueryFlag::Enum::ePOSTFILTER)
+            .value("eANY_HIT", PxQueryFlag::Enum::eANY_HIT)
             .value("eNO_BLOCK", PxQueryFlag::Enum::eNO_BLOCK);
     // enum_<PxQueryHitType::Enum>("PxQueryHitType")
     //         .value("eNONE", PxQueryHitType::Enum::eNONE)
@@ -241,6 +271,14 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     class_<PxQueryFilterCallback>("PxQueryFilterCallback")
             .allow_subclass<PxQueryFilterCallbackWrapper>("PxQueryFilterCallbackWrapper", constructor<>());
     // class_<PxQueryCache>("PxQueryCache");
+
+    class_<PxOverlapHit>("PxOverlapHit")
+            .constructor<>()
+            .function("getShape", optional_override([](PxOverlapHit &hit) { return hit.shape; }),
+                      allow_raw_pointers())
+            .function("getActor", optional_override([](PxOverlapHit &hit) { return hit.actor; }),
+                      allow_raw_pointers())
+            .function("getFaceIndex", optional_override([](PxOverlapHit &hit) { return hit.faceIndex; }));
 }
 
 namespace emscripten {
