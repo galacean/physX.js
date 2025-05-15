@@ -141,7 +141,8 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           PxShape *shape;
                           actor->getShapes(&shape, 1);
                           shape->userData = ptr;
-                      }));  // ✅
+                      }))  // ✅
+            .function("getActor", &PxController::getActor, allow_raw_pointers());  // ✅
 }
 
 namespace emscripten {
