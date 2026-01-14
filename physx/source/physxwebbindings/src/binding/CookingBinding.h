@@ -119,6 +119,7 @@ EMSCRIPTEN_BINDINGS(physx_cooking) {
                           return createTriMesh(vertices, vertCount, indices, triangleCount, isU16, cooking, physics);
                       }),
                       allow_raw_pointers())
+            // flags: 传数值位掩码，如 0 或 PxHeightFieldFlag::eNO_BOUNDARY_EDGES
             .function("createHeightField",
                       optional_override([](PxCooking &cooking, int samples, PxU32 nbRows,
                                            PxU32 nbColumns, int flags, PxPhysics &physics) {
