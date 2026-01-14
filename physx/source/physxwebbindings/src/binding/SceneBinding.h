@@ -215,6 +215,19 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                           return PxSceneQueryExt::overlapAny(scene, geometry, pose, hit, filterData, callback);
                       }),
                       allow_raw_pointers())  // ✅
+            .function("overlapMultiple",
+                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
+                                           PxU32 hitBufferSize,
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
+                          std::vector<PxOverlapHit> hits(hitBufferSize);  // Create buffer with requested size
+                          PxI32 hitCount = PxSceneQueryExt::overlapMultiple(scene, geometry, pose, 
+                                                                           hits.data(), hitBufferSize, 
+                                                                           filterData, callback);
+                          hits.resize(hitCount);  // Resize to actual hit count
+                          return hits;
+                      }),
+                      allow_raw_pointers())  // ✅
            
             // .function("sweep", &PxScene::sweep, allow_raw_pointers())
             // .function("sweepAny",
@@ -294,6 +307,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("getActor", optional_override([](PxOverlapHit &hit) { return hit.actor; }),
                       allow_raw_pointers())
             .function("getFaceIndex", optional_override([](PxOverlapHit &hit) { return hit.faceIndex; }));
+    register_vector<PxOverlapHit>("VectorPxOverlapHit");
 }
 
 namespace emscripten {
