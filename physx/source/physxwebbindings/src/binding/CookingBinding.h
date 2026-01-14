@@ -13,32 +13,6 @@
 using namespace physx;
 using namespace emscripten;
 
-PxConvexMesh *createConvexMeshFromBuffer(int vertices,
-                                         PxU32 vertCount,
-                                         int indices,
-                                         PxU32 indexCount,
-                                         bool isU16,
-                                         PxCooking &cooking,
-                                         PxPhysics &physics) {
-    PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vertCount;
-    convexDesc.points.stride = sizeof(PxVec3);
-    convexDesc.points.data = (PxVec3 *)vertices;
-    if (isU16) {
-        convexDesc.indices.stride = 3 * sizeof(PxU16);
-        convexDesc.indices.data = (PxU16 *)indices;
-        convexDesc.flags = PxConvexFlag::e16_BIT_INDICES;
-    } else {
-        convexDesc.indices.stride = 3 * sizeof(PxU32);
-        convexDesc.indices.data = (PxU32 *)indices;
-    }
-    convexDesc.flags |= PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
-
-    return convexMesh;
-}
-
 PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCooking &cooking, PxPhysics &physics) {
     PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vertCount;
@@ -134,13 +108,6 @@ EMSCRIPTEN_BINDINGS(physx_cooking) {
 
     class_<PxCooking>("PxCooking")
             .function("release", &PxCooking::release)
-            .function("createConvexMeshWithIndices",
-                      optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, int indices,
-                                           PxU32 indexCount, bool isU16, PxPhysics &physics) {
-                          return createConvexMeshFromBuffer(vertices, vertCount, indices, indexCount, isU16, cooking,
-                                                            physics);
-                      }),
-                      allow_raw_pointers())
             .function("createConvexMesh",
                       optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, PxPhysics &physics) {
                           return createConvexMeshFromBuffer(vertices, vertCount, cooking, physics);
