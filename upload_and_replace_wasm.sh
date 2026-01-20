@@ -1,15 +1,65 @@
 #!/bin/bash
 
-# 脚本：上传WASM文件并替换JS中的引用
-# 用途：先使用cli上传wasm_build/physx.release.wasm，然后替换wasmBinaryFile为远程URL
+# 脚本：构建并上传WASM文件，替换JS中的引用
+# 用途：
+#   1. 构建 PhysX WASM（包括 downgrade.js 和 wasm 版本）
+#   2. 上传 wasm_build/ 中的文件到 CDN
+#   3. 替换 JS 中的 wasmBinaryFile 为远程 URL
 
 set -e  # 出错时退出
 
-# 检查文件是否存在
-WASM_FILE="wasm_build/physx.release.wasm"
-JS_FILE="wasm_build/physx.release.js"
-DOWNGRADE_JS_FILE="wasm_build/physx.release.downgrade.js"
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WASM_FILE="$ROOT_DIR/wasm_build/physx.release.wasm"
+JS_FILE="$ROOT_DIR/wasm_build/physx.release.js"
+DOWNGRADE_JS_FILE="$ROOT_DIR/wasm_build/physx.release.downgrade.js"
 
+SKIP_BUILD=false
+
+# 解析参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-build)
+            SKIP_BUILD=true
+            shift
+            ;;
+        *)
+            echo "未知参数: $1"
+            echo "用法: $0 [--skip-build]"
+            exit 1
+            ;;
+    esac
+done
+
+# ============================================
+# 阶段 1: 构建
+# ============================================
+if [ "$SKIP_BUILD" = false ]; then
+    echo "🏗️  阶段 1/2: 构建 PhysX WASM..."
+    echo ""
+
+    if [ ! -f "$ROOT_DIR/build.sh" ]; then
+        echo "❌ 错误：未找到 build.sh"
+        exit 1
+    fi
+
+    # 执行构建
+    (cd "$ROOT_DIR" && ./build.sh)
+
+    echo ""
+    echo "✅ 构建完成"
+    echo ""
+else
+    echo "⏭️  跳过构建阶段 (--skip-build)"
+    echo ""
+fi
+
+# ============================================
+# 阶段 2: 上传
+# ============================================
+echo "🚀 阶段 2/2: 上传文件到 CDN..."
+echo ""
+
+# 检查构建产物是否存在
 if [ ! -f "$WASM_FILE" ]; then
     echo "❌ 错误：未找到文件 $WASM_FILE"
     exit 1
@@ -20,7 +70,12 @@ if [ ! -f "$JS_FILE" ]; then
     exit 1
 fi
 
-echo "🚀 开始上传 WASM 文件..."
+if [ ! -f "$DOWNGRADE_JS_FILE" ]; then
+    echo "❌ 错误：未找到文件 $DOWNGRADE_JS_FILE"
+    exit 1
+fi
+
+echo "📤 开始上传 WASM 文件..."
 
 # 上传WASM文件并获取URL
 echo "📤 正在上传 $WASM_FILE..."
@@ -110,14 +165,8 @@ fi
 echo "📋 提取到的JS URL：$JS_UPLOAD_URL"
 
 # 上传 Downgrade JavaScript 文件
-if [ ! -f "$DOWNGRADE_JS_FILE" ]; then
-    echo "❌ 未找到降级版JS文件：$DOWNGRADE_JS_FILE"
-    echo "请先运行构建流程生成该文件后再执行本脚本。"
-    exit 1
-fi
-
 echo ""
-echo "🚀 开始上传 Downgrade JavaScript 文件..."
+echo "📤 开始上传 Downgrade JavaScript 文件..."
 echo "📤 正在上传 $DOWNGRADE_JS_FILE..."
 
 DOWN_JS_UPLOAD_OUTPUT=$(cli upload "$DOWNGRADE_JS_FILE" 2>&1) || {
@@ -145,7 +194,11 @@ fi
 echo "📋 提取到的降级版JS URL：$DOWN_JS_UPLOAD_URL"
 
 echo ""
-echo "🎉 完成！所有文件已上传并且JS文件中的引用已更新"
+echo "🎉 完成！构建和上传全部成功"
+echo ""
 echo "📁 备份文件：$BACKUP_FILE"
-echo "🔗 JavaScript (main) URL：$JS_UPLOAD_URL"
-echo "🔗 JavaScript (downgrade) URL：$DOWN_JS_UPLOAD_URL"
+echo ""
+echo "🔗 CDN URLs："
+echo "   WASM:              $UPLOAD_URL"
+echo "   JavaScript:        $JS_UPLOAD_URL"
+echo "   JavaScript (降级): $DOWN_JS_UPLOAD_URL"

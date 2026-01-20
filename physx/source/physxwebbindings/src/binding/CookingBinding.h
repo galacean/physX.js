@@ -69,19 +69,83 @@ PxHeightField *createHeightField(int samples,
     return heightField;
 }
 
+// Helper function to create TriangleMeshGeometry with scale
+PxTriangleMeshGeometry *createTriMeshGeometry(PxTriangleMesh *mesh,
+                                               float scaleX, float scaleY, float scaleZ,
+                                               int flags) {
+    PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
+    return new PxTriangleMeshGeometry(mesh, scale, PxMeshGeometryFlags(flags));
+}
+
+// Helper function to create ConvexMeshGeometry with scale
+PxConvexMeshGeometry *createConvexMeshGeometry(PxConvexMesh *mesh,
+                                                float scaleX, float scaleY, float scaleZ,
+                                                int flags) {
+    PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
+    return new PxConvexMeshGeometry(mesh, scale, PxConvexMeshGeometryFlags(flags));
+}
+
+// Helper function to create TriangleMesh shape directly
+PxShape *createTriMeshShape(PxTriangleMesh *mesh,
+                            float scaleX, float scaleY, float scaleZ,
+                            int geoFlags, int shapeFlags,
+                            PxMaterial &material,
+                            PxPhysics &physics) {
+    if (!mesh) {
+        return nullptr;
+    }
+
+    PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
+    PxTriangleMeshGeometry geometry(mesh, scale, PxMeshGeometryFlags(geoFlags));
+    PxShape *shape = physics.createShape(geometry, material, true, PxShapeFlags(shapeFlags));
+
+    return shape;
+}
+
+// Helper functions for PxCookingParams properties (PxFlags needs wrapper)
+PxU32 getCookingMeshPreprocessParams(PxCookingParams &params) {
+    return (PxU32)params.meshPreprocessParams;
+}
+void setCookingMeshPreprocessParams(PxCookingParams &params, PxU32 flags) {
+    params.meshPreprocessParams = PxMeshPreprocessingFlags(flags);
+}
+
+// Helper function to create ConvexMesh shape directly
+PxShape *createConvexMeshShape(PxConvexMesh *mesh,
+                               float scaleX, float scaleY, float scaleZ,
+                               int geoFlags, int shapeFlags,
+                               PxMaterial &material,
+                               PxPhysics &physics) {
+    PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
+    PxConvexMeshGeometry geometry(mesh, scale, PxConvexMeshGeometryFlags(geoFlags));
+    return physics.createShape(geometry, material, true, PxShapeFlags(shapeFlags));
+}
+
 EMSCRIPTEN_BINDINGS(physx_cooking) {
     function("PxCreateCooking", &PxCreateCooking, allow_raw_pointers());
+    function("createTriMeshGeometry", &createTriMeshGeometry, allow_raw_pointers());
+    function("createConvexMeshGeometry", &createConvexMeshGeometry, allow_raw_pointers());
+    function("createTriMeshShape", &createTriMeshShape, allow_raw_pointers());
+    function("createConvexMeshShape", &createConvexMeshShape, allow_raw_pointers());
 
+    // PxVec3 and PxQuat are already bound as value_object in MathBinding.h
+    // Use object literals in JS: { x: 1, y: 2, z: 3 } and { x: 0, y: 0, z: 0, w: 1 }
     class_<PxMeshScale>("PxMeshScale").constructor<const PxVec3 &, const PxQuat &>();
 
-    class_<PxTriangleMesh>("PxTriangleMesh").function("release", &PxTriangleMesh::release);
+    class_<PxTriangleMesh>("PxTriangleMesh")
+            .function("release", &PxTriangleMesh::release)
+            .function("getNbVertices", &PxTriangleMesh::getNbVertices)
+            .function("getNbTriangles", &PxTriangleMesh::getNbTriangles);
     class_<PxTriangleMeshGeometry, base<PxGeometry>>("PxTriangleMeshGeometry")
             .constructor<PxTriangleMesh *, const PxMeshScale &, PxMeshGeometryFlags>();
     class_<PxMeshGeometryFlags>("PxMeshGeometryFlags").constructor<int>();
     enum_<PxMeshGeometryFlag::Enum>("PxMeshGeometryFlag")
             .value("eDOUBLE_SIDED", PxMeshGeometryFlag::Enum::eDOUBLE_SIDED);
 
-    class_<PxConvexMesh>("PxConvexMesh").function("release", &PxConvexMesh::release);
+    class_<PxConvexMesh>("PxConvexMesh")
+            .function("release", &PxConvexMesh::release)
+            .function("getNbVertices", &PxConvexMesh::getNbVertices)
+            .function("getNbPolygons", &PxConvexMesh::getNbPolygons);
     class_<PxConvexMeshGeometry, base<PxGeometry>>("PxConvexMeshGeometry")
             .constructor<PxConvexMesh *, const PxMeshScale &, PxConvexMeshGeometryFlags>();
     class_<PxConvexMeshGeometryFlags>("PxConvexMeshGeometryFlags").constructor<int>();
@@ -126,7 +190,16 @@ EMSCRIPTEN_BINDINGS(physx_cooking) {
                           return createHeightField(samples, nbRows, nbColumns, PxHeightFieldFlags(flags), cooking, physics);
                       }),
                       allow_raw_pointers());
-    class_<PxCookingParams>("PxCookingParams").constructor<PxTolerancesScale>();
+    class_<PxCookingParams>("PxCookingParams")
+            .constructor<PxTolerancesScale>()
+            .property("meshWeldTolerance", &PxCookingParams::meshWeldTolerance)
+            .property("areaTestEpsilon", &PxCookingParams::areaTestEpsilon)
+            .property("planeTolerance", &PxCookingParams::planeTolerance)
+            .property("buildTriangleAdjacencies", &PxCookingParams::buildTriangleAdjacencies);
+
+    // meshPreprocessParams needs function access (PxFlags type)
+    function("getCookingMeshPreprocessParams", &getCookingMeshPreprocessParams, allow_raw_pointers());
+    function("setCookingMeshPreprocessParams", &setCookingMeshPreprocessParams, allow_raw_pointers());
 }
 
 namespace emscripten {
