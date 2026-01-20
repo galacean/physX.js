@@ -12,3 +12,9 @@ physx/compiler
 .claude/
 CLAUDE.md
 
+# Docs
+docs/
+
+# Build backups
+*.backup.*
+
