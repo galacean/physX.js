@@ -175,7 +175,7 @@ const PX_ALIGN(16, PxF32 gMaskXYZ[4]) = { physx::PxUnionCast<PxF32>(0xffffffff),
 #else
 // emscripten doesn't like the PxUnionCast data structure
 // the following is what windows and xbox does -- using these for emscripten
-const PX_ALIGN(16, PxU32 gMaskXYZ[4]) = { 0xffffffff, 0xffffffff, 0xffffffff, 0 }; }
+const PX_ALIGN(16, PxU32 gMaskXYZ[4]) = { 0xffffffff, 0xffffffff, 0xffffffff, 0 };
 #endif
 }
 

@@ -13,6 +13,13 @@
 using namespace physx;
 using namespace emscripten;
 
+// Cooking result storage (single-threaded WASM, no synchronization needed)
+static PxU32 g_lastConvexCookingResult = 0;
+static PxU32 g_lastTriMeshCookingResult = 0;
+
+PxU32 getLastConvexCookingResult() { return g_lastConvexCookingResult; }
+PxU32 getLastTriMeshCookingResult() { return g_lastTriMeshCookingResult; }
+
 PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCooking &cooking, PxPhysics &physics) {
     PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vertCount;
@@ -20,7 +27,9 @@ PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCookin
     convexDesc.points.data = (PxVec3 *)vertices;
     convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
 
-    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback());
+    PxConvexMeshCookingResult::Enum result;
+    PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback(), &result);
+    g_lastConvexCookingResult = (PxU32)result;
 
     return convexMesh;
 }
@@ -47,7 +56,9 @@ PxTriangleMesh *createTriMesh(int vertices,
         meshDesc.triangles.data = (PxU32 *)indices;
     }
 
-    PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback());
+    PxTriangleMeshCookingResult::Enum result;
+    PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback(), &result);
+    g_lastTriMeshCookingResult = (PxU32)result;
     return triangleMesh;
 }
 
@@ -108,6 +119,11 @@ PxU32 getCookingMeshPreprocessParams(PxCookingParams &params) {
 }
 void setCookingMeshPreprocessParams(PxCookingParams &params, PxU32 flags) {
     params.meshPreprocessParams = PxMeshPreprocessingFlags(flags);
+}
+
+// Midphase type helper: 0 = eBVH33, 1 = eBVH34
+void setCookingMidphaseType(PxCookingParams &params, PxU32 type) {
+    params.midphaseDesc.setToDefault(static_cast<PxMeshMidPhase::Enum>(type));
 }
 
 // Helper function to create ConvexMesh shape directly
@@ -172,6 +188,7 @@ EMSCRIPTEN_BINDINGS(physx_cooking) {
 
     class_<PxCooking>("PxCooking")
             .function("release", &PxCooking::release)
+            .function("setParams", &PxCooking::setParams)
             .function("createConvexMesh",
                       optional_override([](PxCooking &cooking, int vertices, PxU32 vertCount, PxPhysics &physics) {
                           return createConvexMeshFromBuffer(vertices, vertCount, cooking, physics);
@@ -200,6 +217,11 @@ EMSCRIPTEN_BINDINGS(physx_cooking) {
     // meshPreprocessParams needs function access (PxFlags type)
     function("getCookingMeshPreprocessParams", &getCookingMeshPreprocessParams, allow_raw_pointers());
     function("setCookingMeshPreprocessParams", &setCookingMeshPreprocessParams, allow_raw_pointers());
+    // Cooking result getters
+    function("getLastConvexCookingResult", &getLastConvexCookingResult);
+    function("getLastTriMeshCookingResult", &getLastTriMeshCookingResult);
+    // Midphase type setter (0 = BVH33, 1 = BVH34)
+    function("setCookingMidphaseType", &setCookingMidphaseType, allow_raw_pointers());
 }
 
 namespace emscripten {

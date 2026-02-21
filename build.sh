@@ -1,9 +1,13 @@
 #!/bin/bash
 set -e
 
-# Build PhysX WebBindings twice:
-# 1) Using line 28 (SINGLE_FILE=1, WASM=0) -> output: wasm_build/physx.release.downgrade.js
-# 2) Using line 27 (NO_DYNAMIC_EXECUTION=1, WASM) -> outputs: wasm_build/physx.release.js and wasm_build/physx.release.wasm
+# Ensure no stale SIMD env from previous failed runs
+unset PX_ENABLE_SIMD
+
+# Build PhysX WebBindings three times:
+# 1) SINGLE_FILE=1, WASM=0 -> output: wasm_build/physx.release.downgrade.js
+# 2) NO_DYNAMIC_EXECUTION=1, WASM -> outputs: wasm_build/physx.release.js and wasm_build/physx.release.wasm
+# 3) NO_DYNAMIC_EXECUTION=1, WASM + SIMD -> outputs: wasm_build/physx.release.simd.js and wasm_build/physx.release.simd.wasm
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CMAKE_FILE="$ROOT_DIR/physx/source/compiler/cmake/emscripten/PhysXWebBindings.cmake"
@@ -20,6 +24,7 @@ backup_cmake() {
 }
 
 restore_cmake() {
+  unset PX_ENABLE_SIMD
   if [ -n "$CMAKE_BACKUP_FILE" ] && [ -f "$CMAKE_BACKUP_FILE" ]; then
     mv "$CMAKE_BACKUP_FILE" "$CMAKE_FILE"
     echo "♻️ 已还原 CMake 文件到初始状态"
@@ -58,7 +63,7 @@ backup_cmake
 
 # 1) 降级构建：SINGLE_FILE=1, WASM=0
 console_msg() { echo "$1"; }
-console_msg "\n=== 1/2: 使用第28行配置进行降级构建 (SINGLE_FILE=1, WASM=0) ==="
+console_msg "\n=== 1/3: 降级构建 (SINGLE_FILE=1, WASM=0) ==="
 enable_single_file
 run_generate_and_make
 
@@ -72,7 +77,7 @@ else
 fi
 
 # 2) 正常构建：WASM + JS
-console_msg "\n=== 2/2: 使用第27行配置进行正常构建 (NO_DYNAMIC_EXECUTION=1, WASM) ==="
+console_msg "\n=== 2/3: 正常构建 (NO_DYNAMIC_EXECUTION=1, WASM) ==="
 enable_wasm
 run_generate_and_make
 
@@ -90,6 +95,29 @@ if [ -f "$BIN_DIR/physx.release.wasm" ]; then
   echo "📦 已生成WASM：$OUT_DIR/physx.release.wasm"
 else
   echo "❌ 未找到主版WASM输出 $BIN_DIR/physx.release.wasm"
+  exit 1
+fi
+
+# 3) SIMD 构建：WASM + SIMD
+console_msg "\n=== 3/3: SIMD 构建 (NO_DYNAMIC_EXECUTION=1, WASM + SIMD) ==="
+export PX_ENABLE_SIMD=1
+run_generate_and_make
+unset PX_ENABLE_SIMD
+
+# 复制 SIMD 输出
+if [ -f "$BIN_DIR/physx.release.js" ]; then
+  cp "$BIN_DIR/physx.release.js" "$OUT_DIR/physx.release.simd.js"
+  echo "📦 已生成SIMD JS：$OUT_DIR/physx.release.simd.js"
+else
+  echo "❌ 未找到SIMD输出 $BIN_DIR/physx.release.js"
+  exit 1
+fi
+
+if [ -f "$BIN_DIR/physx.release.wasm" ]; then
+  cp "$BIN_DIR/physx.release.wasm" "$OUT_DIR/physx.release.simd.wasm"
+  echo "📦 已生成SIMD WASM：$OUT_DIR/physx.release.simd.wasm"
+else
+  echo "❌ 未找到SIMD WASM输出 $BIN_DIR/physx.release.wasm"
   exit 1
 fi
 
