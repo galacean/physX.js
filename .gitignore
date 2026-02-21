@@ -7,14 +7,3 @@ wasm_build
 physx/include/PxConfig.h
 physx/bin
 physx/compiler
-
-# Claude Code
-.claude/
-CLAUDE.md
-
-# Docs
-docs/
-
-# Build backups
-*.backup.*
-
