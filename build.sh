@@ -53,6 +53,8 @@ unset PX_ENABLE_SIMD
 # 复制 SIMD 输出
 if [ -f "$BIN_DIR/physx.release.js" ]; then
   cp "$BIN_DIR/physx.release.js" "$OUT_DIR/physx.release.simd.js"
+  # Fix hardcoded wasm filename to point to SIMD variant
+  sed -i '' 's/physx.release.wasm/physx.release.simd.wasm/g' "$OUT_DIR/physx.release.simd.js"
   echo "📦 已生成SIMD JS：$OUT_DIR/physx.release.simd.js"
 else
   echo "❌ 未找到SIMD输出 $BIN_DIR/physx.release.js"
