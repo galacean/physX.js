@@ -4,7 +4,7 @@
 
 #pragma once
 
-#if PX_DEBUG || PX_PROFILE || PX_CHECKED
+#if PX_SUPPORT_PVD
 
 #include <emscripten.h>
 #include <emscripten/bind.h>

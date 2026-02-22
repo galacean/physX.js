@@ -24,7 +24,10 @@ using namespace emscripten;
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
+
+#if PX_SUPPORT_PVD
     class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
+#endif
 
     // Global functions
     // These are generally system/scene level initialization
@@ -131,10 +134,6 @@ void raw_destructor<PxFoundation>(PxFoundation *) { /* do nothing */
 
 template <>
 void raw_destructor<PxBVHStructure>(PxBVHStructure *) { /* do nothing */
-}
-
-template <>
-void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
 }
 
 }  // namespace internal
