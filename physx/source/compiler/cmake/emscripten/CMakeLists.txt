@@ -31,10 +31,10 @@ SET(CMAKE_STATIC_LIBRARY_PREFIX "")
 
 IF(DEFINED ENV{PX_ENABLE_SIMD})
   MESSAGE("PhysX SIMD: ENABLED (-msimd128 -msse4.2)")
-  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -msimd128 -msse4.2 --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
+  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -msimd128 -msse4.2 --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
 ELSE()
   MESSAGE("PhysX SIMD: DISABLED")
-  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
+  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
   ADD_DEFINITIONS(-DPX_SIMD_DISABLED)
 ENDIF()
 
