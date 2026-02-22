@@ -53,10 +53,6 @@ EMSCRIPTEN_BINDINGS(physx_pvd) {
 namespace emscripten {
 namespace internal {
 template <>
-void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
-}
-
-template <>
 void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
 }
 
