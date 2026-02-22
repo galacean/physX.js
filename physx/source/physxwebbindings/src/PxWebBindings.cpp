@@ -1,6 +1,3 @@
-//
-// Created by Oasis on 2023/3/21.
-//
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
