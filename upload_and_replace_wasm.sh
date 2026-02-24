@@ -143,22 +143,36 @@ SIMD_JS_URL=$(upload_file "$WASM_DIR/physx.release.simd.js" "SIMD JS")
 SIMD_JS_URL=$(echo "$SIMD_JS_URL" | tail -1)
 
 # ============================================
-# 阶段 3: 复制到 e2e 目录
+# 阶段 3: 复制到 engine 目录
 # ============================================
-E2E_DEV_DIR="/Users/chenmo/Code/Galacean/engine/e2e/.dev"
+if [ -n "$GALACEAN_ENGINE_DIR" ]; then
+    E2E_DEV_DIR="$GALACEAN_ENGINE_DIR/e2e/.dev"
+    LIBS_DIR="$GALACEAN_ENGINE_DIR/packages/physics-physx/libs"
 
-if [ -d "$E2E_DEV_DIR" ]; then
     echo ""
-    echo "📂 阶段 3/3: 复制到 e2e 目录..."
+    echo "📂 阶段 3/3: 复制到 engine 目录..."
 
-    cp "$BACKUP_FILE" "$E2E_DEV_DIR/physx.release.js"
-    cp "$WASM_DIR/physx.release.wasm" "$E2E_DEV_DIR/physx.release.wasm"
-    cp "$SIMD_BACKUP_FILE" "$E2E_DEV_DIR/physx.release.simd.js"
-    cp "$WASM_DIR/physx.release.simd.wasm" "$E2E_DEV_DIR/physx.release.simd.wasm"
+    if [ -d "$E2E_DEV_DIR" ]; then
+        cp "$BACKUP_FILE" "$E2E_DEV_DIR/physx.release.js"
+        cp "$WASM_DIR/physx.release.wasm" "$E2E_DEV_DIR/physx.release.wasm"
+        cp "$SIMD_BACKUP_FILE" "$E2E_DEV_DIR/physx.release.simd.js"
+        cp "$WASM_DIR/physx.release.simd.wasm" "$E2E_DEV_DIR/physx.release.simd.wasm"
+        echo "✅ 已复制到 $E2E_DEV_DIR"
+    else
+        echo "⚠️  未找到 e2e 目录: $E2E_DEV_DIR，跳过"
+    fi
 
-    echo "✅ 已复制到 $E2E_DEV_DIR"
+    if [ -d "$LIBS_DIR" ]; then
+        cp "$BACKUP_FILE" "$LIBS_DIR/physx.release.js"
+        cp "$WASM_DIR/physx.release.wasm" "$LIBS_DIR/physx.release.wasm"
+        cp "$SIMD_BACKUP_FILE" "$LIBS_DIR/physx.release.simd.js"
+        cp "$WASM_DIR/physx.release.simd.wasm" "$LIBS_DIR/physx.release.simd.wasm"
+        echo "✅ 已复制到 $LIBS_DIR"
+    else
+        echo "⚠️  未找到 libs 目录: $LIBS_DIR，跳过"
+    fi
 else
-    echo "⚠️  未找到 e2e 目录: $E2E_DEV_DIR，跳过复制"
+    echo "⚠️  未设置 GALACEAN_ENGINE_DIR，跳过复制"
 fi
 
 echo ""

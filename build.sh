@@ -6,7 +6,7 @@ unset PX_ENABLE_SIMD
 
 # Build PhysX WebBindings:
 # Release: physx.release.js/wasm + physx.release.simd.js/wasm
-# Debug:   physx.debug.js/wasm   + physx.debug.simd.js/wasm (with PVD support)
+# Debug (BUILD_DEBUG=1): physx.debug.js/wasm + physx.debug.simd.js/wasm (with PVD support)
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT_DIR="$ROOT_DIR/wasm_build"
@@ -60,8 +60,10 @@ generate_projects
 build release
 copy_output release ""
 
-build debug
-copy_output debug ""
+if [ "${BUILD_DEBUG:-0}" = "1" ]; then
+  build debug
+  copy_output debug ""
+fi
 
 # ==================== SIMD ====================
 echo "=== 2/2: SIMD 构建 ==="
@@ -71,8 +73,10 @@ generate_projects
 build release
 copy_output release ".simd"
 
-build debug
-copy_output debug ".simd"
+if [ "${BUILD_DEBUG:-0}" = "1" ]; then
+  build debug
+  copy_output debug ".simd"
+fi
 
 unset PX_ENABLE_SIMD
 
