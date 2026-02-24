@@ -1,17 +1,22 @@
 #!/bin/bash
-
 # 脚本：构建并上传WASM文件，替换JS中的引用
 # 用途：
-#   1. 构建 PhysX WASM（包括 downgrade.js 和 wasm 版本）
+#   1. 构建 PhysX WASM（标准 + SIMD）
 #   2. 上传 wasm_build/ 中的文件到 CDN
 #   3. 替换 JS 中的 wasmBinaryFile 为远程 URL
 
 set -e  # 出错时退出
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WASM_FILE="$ROOT_DIR/wasm_build/physx.release.wasm"
-JS_FILE="$ROOT_DIR/wasm_build/physx.release.js"
-DOWNGRADE_JS_FILE="$ROOT_DIR/wasm_build/physx.release.downgrade.js"
+WASM_DIR="$ROOT_DIR/wasm_build"
+
+# 需要上传的文件列表（名称 => 描述）
+FILES=(
+    "physx.release.wasm:Release WASM"
+    "physx.release.js:Release JS"
+    "physx.release.simd.wasm:SIMD WASM"
+    "physx.release.simd.js:SIMD JS"
+)
 
 SKIP_BUILD=false
 
@@ -34,7 +39,7 @@ done
 # 阶段 1: 构建
 # ============================================
 if [ "$SKIP_BUILD" = false ]; then
-    echo "🏗️  阶段 1/2: 构建 PhysX WASM..."
+    echo "🏗️  阶段 1/3: 构建 PhysX WASM..."
     echo ""
 
     if [ ! -f "$ROOT_DIR/build.sh" ]; then
@@ -42,7 +47,6 @@ if [ "$SKIP_BUILD" = false ]; then
         exit 1
     fi
 
-    # 执行构建
     (cd "$ROOT_DIR" && ./build.sh)
 
     echo ""
@@ -56,149 +60,112 @@ fi
 # ============================================
 # 阶段 2: 上传
 # ============================================
-echo "🚀 阶段 2/2: 上传文件到 CDN..."
+echo "🚀 阶段 2/3: 上传文件到 CDN..."
 echo ""
 
 # 检查构建产物是否存在
-if [ ! -f "$WASM_FILE" ]; then
-    echo "❌ 错误：未找到文件 $WASM_FILE"
-    exit 1
-fi
+for entry in "${FILES[@]}"; do
+    FILE_NAME="${entry%%:*}"
+    FILE_DESC="${entry##*:}"
+    if [ ! -f "$WASM_DIR/$FILE_NAME" ]; then
+        echo "❌ 错误：未找到 $FILE_DESC 文件 $WASM_DIR/$FILE_NAME"
+        exit 1
+    fi
+done
 
-if [ ! -f "$JS_FILE" ]; then
-    echo "❌ 错误：未找到文件 $JS_FILE"
-    exit 1
-fi
+# 上传函数：上传文件并返回 CDN URL
+upload_file() {
+    local file_path=$1
+    local file_desc=$2
 
-if [ ! -f "$DOWNGRADE_JS_FILE" ]; then
-    echo "❌ 错误：未找到文件 $DOWNGRADE_JS_FILE"
-    exit 1
-fi
+    echo "📤 正在上传 $file_desc: $file_path..."
+    local output
+    output=$(cli upload "$file_path" 2>&1) || {
+        echo "❌ $file_desc 上传失败："
+        echo "$output"
+        exit 1
+    }
 
-echo "📤 开始上传 WASM 文件..."
+    local url
+    url=$(echo "$output" | grep -oE 'https?://[^[:space:]]+' | head -n1)
+    if [ -z "$url" ]; then
+        echo "❌ 无法从上传输出中提取URL"
+        echo "上传输出：$output"
+        exit 1
+    fi
 
-# 上传WASM文件并获取URL
-echo "📤 正在上传 $WASM_FILE..."
-UPLOAD_OUTPUT=$(cli upload "$WASM_FILE" 2>&1) || {
-    echo "❌ 上传失败："
-    echo "$UPLOAD_OUTPUT"
-    exit 1
+    echo "✅ $file_desc 上传完成: $url"
+    echo "$url"
 }
 
-echo "✅ 上传完成"
-echo "上传输出：$UPLOAD_OUTPUT"
+# 上传 release WASM 并替换 JS 中的引用
+WASM_URL=$(upload_file "$WASM_DIR/physx.release.wasm" "Release WASM")
+WASM_URL=$(echo "$WASM_URL" | tail -1)
 
-# 从上传输出中提取URL
-# 假设输出包含URL，我们需要解析它
-# 这里可能需要根据实际的cli upload输出格式调整
-UPLOAD_URL=$(echo "$UPLOAD_OUTPUT" | grep -oE 'https?://[^[:space:]]+' | head -n1) || {
-    echo "❌ 无法从上传输出中提取URL"
-    echo "上传输出：$UPLOAD_OUTPUT"
-    exit 1
-}
+# 备份并替换 release JS 中的 wasmBinaryFile
+BACKUP_FILE="$WASM_DIR/physx.release.js.backup.$(date +%Y%m%d_%H%M%S)"
+cp "$WASM_DIR/physx.release.js" "$BACKUP_FILE"
 
-if [ -z "$UPLOAD_URL" ]; then
-    echo "❌ 提取的URL为空"
-    echo "上传输出：$UPLOAD_OUTPUT"
-    exit 1
-fi
+sed -i.tmp "s|locateFile(\"physx\.release\.wasm\")|\"$WASM_URL\"|g" "$WASM_DIR/physx.release.js"
+rm -f "$WASM_DIR/physx.release.js.tmp"
 
-echo "📋 提取到的URL：$UPLOAD_URL"
-
-# 创建JS文件的备份
-BACKUP_FILE="${JS_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-cp "$JS_FILE" "$BACKUP_FILE"
-echo "💾 已创建备份文件：$BACKUP_FILE"
-
-# 替换JS文件中的wasmBinaryFile
-echo "🔄 正在替换 $JS_FILE 中的 wasmBinaryFile..."
-
-# 使用sed替换wasmBinaryFile="physx.release.wasm"为实际URL
-sed -i.tmp "s|wasmBinaryFile=\"physx\.release\.wasm\"|wasmBinaryFile=\"$UPLOAD_URL\"|g" "$JS_FILE"
-
-# 删除sed创建的临时文件
-rm -f "${JS_FILE}.tmp"
-
-# 验证替换是否成功
-if grep -F "$UPLOAD_URL" "$JS_FILE" > /dev/null; then
-    echo "✅ 替换成功！"
-    echo "📄 已将 wasmBinaryFile 更新为：$UPLOAD_URL"
+if grep -qF "$WASM_URL" "$WASM_DIR/physx.release.js"; then
+    echo "✅ Release JS wasm 路径替换成功"
 else
-    echo "❌ 替换失败，恢复备份文件"
-    cp "$BACKUP_FILE" "$JS_FILE"
+    echo "❌ 替换失败，恢复备份"
+    cp "$BACKUP_FILE" "$WASM_DIR/physx.release.js"
     exit 1
 fi
 
-# 显示更改后的内容（只显示相关行）
-echo ""
-echo "📋 验证更改："
-grep -n "wasmBinaryFile=" "$JS_FILE" || echo "未找到wasmBinaryFile行"
+# 上传替换后的 release JS
+JS_URL=$(upload_file "$WASM_DIR/physx.release.js" "Release JS")
+JS_URL=$(echo "$JS_URL" | tail -1)
 
-# 上传JavaScript文件
-echo ""
-echo "🚀 开始上传 JavaScript 文件..."
-echo "📤 正在上传 $JS_FILE..."
+# 上传 SIMD WASM 并替换 SIMD JS 中的引用
+SIMD_WASM_URL=$(upload_file "$WASM_DIR/physx.release.simd.wasm" "SIMD WASM")
+SIMD_WASM_URL=$(echo "$SIMD_WASM_URL" | tail -1)
 
-JS_UPLOAD_OUTPUT=$(cli upload "$JS_FILE" 2>&1) || {
-    echo "❌ JS文件上传失败："
-    echo "$JS_UPLOAD_OUTPUT"
-    echo "⚠️  WASM文件已成功上传并替换，但JS文件上传失败"
-    exit 1
-}
+SIMD_BACKUP_FILE="$WASM_DIR/physx.release.simd.js.backup.$(date +%Y%m%d_%H%M%S)"
+cp "$WASM_DIR/physx.release.simd.js" "$SIMD_BACKUP_FILE"
 
-echo "✅ JS文件上传完成"
-echo "JS上传输出：$JS_UPLOAD_OUTPUT"
+sed -i.tmp "s|locateFile(\"physx\.release\.simd\.wasm\")|\"$SIMD_WASM_URL\"|g" "$WASM_DIR/physx.release.simd.js"
+rm -f "$WASM_DIR/physx.release.simd.js.tmp"
 
-# 从JS上传输出中提取URL
-JS_UPLOAD_URL=$(echo "$JS_UPLOAD_OUTPUT" | grep -oE 'https?://[^[:space:]]+' | head -n1) || {
-    echo "❌ 无法从JS上传输出中提取URL"
-    echo "JS上传输出：$JS_UPLOAD_OUTPUT"
-    exit 1
-}
-
-if [ -z "$JS_UPLOAD_URL" ]; then
-    echo "❌ 提取的JS URL为空"
-    echo "JS上传输出：$JS_UPLOAD_OUTPUT"
+if grep -qF "$SIMD_WASM_URL" "$WASM_DIR/physx.release.simd.js"; then
+    echo "✅ SIMD JS wasm 路径替换成功"
+else
+    echo "❌ 替换失败，恢复备份"
+    cp "$SIMD_BACKUP_FILE" "$WASM_DIR/physx.release.simd.js"
     exit 1
 fi
 
-echo "📋 提取到的JS URL：$JS_UPLOAD_URL"
+SIMD_JS_URL=$(upload_file "$WASM_DIR/physx.release.simd.js" "SIMD JS")
+SIMD_JS_URL=$(echo "$SIMD_JS_URL" | tail -1)
 
-# 上传 Downgrade JavaScript 文件
-echo ""
-echo "📤 开始上传 Downgrade JavaScript 文件..."
-echo "📤 正在上传 $DOWNGRADE_JS_FILE..."
+# ============================================
+# 阶段 3: 复制到 e2e 目录
+# ============================================
+E2E_DEV_DIR="/Users/chenmo/Code/Galacean/engine/e2e/.dev"
 
-DOWN_JS_UPLOAD_OUTPUT=$(cli upload "$DOWNGRADE_JS_FILE" 2>&1) || {
-    echo "❌ 降级版JS文件上传失败："
-    echo "$DOWN_JS_UPLOAD_OUTPUT"
-    echo "⚠️  主版JS和WASM已成功处理，但降级版JS上传失败"
-    exit 1
-}
+if [ -d "$E2E_DEV_DIR" ]; then
+    echo ""
+    echo "📂 阶段 3/3: 复制到 e2e 目录..."
 
-echo "✅ 降级版JS文件上传完成"
-echo "Downgrade JS上传输出：$DOWN_JS_UPLOAD_OUTPUT"
+    cp "$BACKUP_FILE" "$E2E_DEV_DIR/physx.release.js"
+    cp "$WASM_DIR/physx.release.wasm" "$E2E_DEV_DIR/physx.release.wasm"
+    cp "$SIMD_BACKUP_FILE" "$E2E_DEV_DIR/physx.release.simd.js"
+    cp "$WASM_DIR/physx.release.simd.wasm" "$E2E_DEV_DIR/physx.release.simd.wasm"
 
-DOWN_JS_UPLOAD_URL=$(echo "$DOWN_JS_UPLOAD_OUTPUT" | grep -oE 'https?://[^[:space:]]+' | head -n1) || {
-    echo "❌ 无法从降级版JS上传输出中提取URL"
-    echo "降级版JS上传输出：$DOWN_JS_UPLOAD_OUTPUT"
-    exit 1
-}
-
-if [ -z "$DOWN_JS_UPLOAD_URL" ]; then
-    echo "❌ 提取的降级版JS URL为空"
-    echo "降级版JS上传输出：$DOWN_JS_UPLOAD_OUTPUT"
-    exit 1
+    echo "✅ 已复制到 $E2E_DEV_DIR"
+else
+    echo "⚠️  未找到 e2e 目录: $E2E_DEV_DIR，跳过复制"
 fi
 
-echo "📋 提取到的降级版JS URL：$DOWN_JS_UPLOAD_URL"
-
 echo ""
-echo "🎉 完成！构建和上传全部成功"
-echo ""
-echo "📁 备份文件：$BACKUP_FILE"
+echo "🎉 完成！"
 echo ""
 echo "🔗 CDN URLs："
-echo "   WASM:              $UPLOAD_URL"
-echo "   JavaScript:        $JS_UPLOAD_URL"
-echo "   JavaScript (降级): $DOWN_JS_UPLOAD_URL"
+echo "   Release WASM:  $WASM_URL"
+echo "   Release JS:    $JS_URL"
+echo "   SIMD WASM:     $SIMD_WASM_URL"
+echo "   SIMD JS:       $SIMD_JS_URL"

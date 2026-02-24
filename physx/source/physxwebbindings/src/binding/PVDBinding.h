@@ -1,10 +1,7 @@
-//
-// Created by Oasis on 2023/3/21.
-//
 
 #pragma once
 
-#if PX_DEBUG || PX_PROFILE || PX_CHECKED
+#if PX_SUPPORT_PVD
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -55,10 +52,6 @@ EMSCRIPTEN_BINDINGS(physx_pvd) {
 
 namespace emscripten {
 namespace internal {
-template <>
-void raw_destructor<PxPvd>(PxPvd *) { /* do nothing */
-}
-
 template <>
 void raw_destructor<PxPvdTransport>(PxPvdTransport *) { /* do nothing */
 }
