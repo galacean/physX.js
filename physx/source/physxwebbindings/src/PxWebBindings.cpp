@@ -1,6 +1,3 @@
-//
-// Created by Oasis on 2023/3/21.
-//
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -24,7 +21,12 @@ using namespace emscripten;
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
-    class_<PxPvd>("PxPvd").function("connect", &PxPvd::connect);
+
+    class_<PxPvd>("PxPvd")
+#if PX_SUPPORT_PVD
+            .function("connect", &PxPvd::connect)
+#endif
+            ;
 
     // Global functions
     // These are generally system/scene level initialization

@@ -6,29 +6,35 @@ physX (aka PhysX_4.1.1.27006925) compiled by Emscripten SDK.
 
 1. *nix System
 2. Cmake
-3. [emsdk](https://emscripten.org) **(pass test on version 3.1.0)**
+3. [emsdk](https://emscripten.org) **(pass test on version 5.0.1)**
 
 ## Usage
 
-Following the instruction to [install emsk](https://emscripten.org/docs/getting_started/downloads.html) (the default
+Following the instruction to [install emsdk](https://emscripten.org/docs/getting_started/downloads.html) (the default
 location is in $HOME)
 
 The repo provides simple shell script to compile the wasm and glue Javascript files:
 
 ```shell
+# Build release (standard + SIMD), outputs to wasm_build/
 ./build.sh
+
+# Build release + debug (with PVD support)
+BUILD_DEBUG=1 ./build.sh
 ```
 
-You can modify build.sh to set the number of CPU cores used when compiling and different compile target, including:
+Build outputs:
+- `physx.release.js` / `physx.release.wasm` — standard release build
+- `physx.release.simd.js` / `physx.release.simd.wasm` — SIMD-optimized release build
+- `physx.debug.js` / `physx.debug.wasm` — debug build with PVD support (requires `BUILD_DEBUG=1`)
+- `physx.debug.simd.js` / `physx.debug.simd.wasm` — SIMD debug build (requires `BUILD_DEBUG=1`)
 
-1. Release(default, the smallest size)
-2. Profile
-3. Checked
-4. Debug
+## CDN
 
-After finish running build.sh, there will be a folder call wasm_build which including wasm binary files and JavaScript
-code used to import the wasm files into the browsers. For convenience, there will also be a link to the binding code in
-the folder, you can modify the code as you wish and re-run build.sh to generate the new wasm related files.
+| Variant | JS | WASM |
+|---------|-----|------|
+| Standard | [physx.release.js](https://mdn.alipayobjects.com/rms/afts/file/A*woU4RZ4qaDkAAAAAQ4AAAAgAehQnAQ/physx.release.js) | [physx.release.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*q1fzSJhCiCEAAAAAgCAAAAgAehQnAQ/physx.release.wasm) |
+| SIMD | [physx.release.simd.js](https://mdn.alipayobjects.com/rms/afts/file/A*WHp7S4HNupUAAAAAQ4AAAAgAehQnAQ/physx.release.simd.js) | [physx.release.simd.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*tBZPTaZVLdoAAAAAgDAAAAgAehQnAQ/physx.release.simd.wasm) |
 
 ## TypeScript Bindings
 
@@ -173,9 +179,5 @@ physics = PhysX.PxCreatePhysics(
 ## Acknowledgement
 
 This repo based on the work being done over at [prestomation/PhysX](https://github.com/prestomation/PhysX) to create
-emscripten bindings for [NVIDIAGameWorks/PhysX](https://github.com/NVIDIAGameWorks/PhysX).  
-
-
-
-
+emscripten bindings for [NVIDIAGameWorks/PhysX](https://github.com/NVIDIAGameWorks/PhysX).
 

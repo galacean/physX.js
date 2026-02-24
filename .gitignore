@@ -7,4 +7,3 @@ wasm_build
 physx/include/PxConfig.h
 physx/bin
 physx/compiler
-

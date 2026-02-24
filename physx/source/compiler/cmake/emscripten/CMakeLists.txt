@@ -29,8 +29,14 @@ STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWERCASE)
 
 SET(CMAKE_STATIC_LIBRARY_PREFIX "")
 
-# SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -msimd128 ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
-SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
+IF(DEFINED ENV{PX_ENABLE_SIMD})
+  MESSAGE("PhysX SIMD: ENABLED (-msimd128 -msse4.2)")
+  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -flto -msimd128 -msse4.2 --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
+ELSE()
+  MESSAGE("PhysX SIMD: DISABLED")
+  SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fno-exceptions -ffunction-sections -fdata-sections -fstrict-aliasing -flto --bind ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX" FORCE)
+  ADD_DEFINITIONS(-DPX_SIMD_DISABLED)
+ENDIF()
 
 SET(CMAKE_CXX_FLAGS ${PHYSX_CXX_FLAGS})
 
@@ -40,9 +46,6 @@ SET(PHYSX_EMSCRIPTEN_DEBUG_COMPILE_DEFS   "NDEBUG;PX_DEBUG=1;PX_CHECKED=1;${NVTX
 SET(PHYSX_EMSCRIPTEN_CHECKED_COMPILE_DEFS "NDEBUG;PX_CHECKED=1;${NVTX_FLAG};PX_SUPPORT_PVD=1" CACHE INTERNAL "Checked PhysX preprocessor definitions")
 SET(PHYSX_EMSCRIPTEN_PROFILE_COMPILE_DEFS "NDEBUG;PX_PROFILE=1;${NVTX_FLAG};PX_SUPPORT_PVD=1"  CACHE INTERNAL "Profile PhysX preprocessor definitions")
 SET(PHYSX_EMSCRIPTEN_RELEASE_COMPILE_DEFS "NDEBUG;PX_SUPPORT_PVD=0" CACHE INTERNAL "Release PhysX preprocessor definitions")
-
-# TODO: Turn on SIMD 
-ADD_DEFINITIONS(-DPX_SIMD_DISABLED)
 
 
 INCLUDE(PhysXFoundation.cmake)

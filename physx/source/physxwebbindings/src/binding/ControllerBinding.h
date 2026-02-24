@@ -1,6 +1,3 @@
-//
-// Created by Oasis on 2023/3/21.
-//
 
 #pragma once
 
@@ -35,7 +32,8 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
     /** PhysXCharacterControllerManager ✅ */
     class_<PxControllerManager>("PxControllerManager")
             // .function("purgeControllers", &PxControllerManager::purgeControllers)                              // ✅
-            .function("createController", &PxControllerManager::createController, allow_raw_pointers());          // ✅
+            .function("createController", &PxControllerManager::createController, allow_raw_pointers())           // ✅
+            .function("release", &PxControllerManager::release);  // ✅
             // .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers())  // ✅
             // .function("setTessellation", &PxControllerManager::setTessellation)                                // ✅
             // .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)              // ✅
