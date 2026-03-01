@@ -30,20 +30,6 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
     class_<PxFixedJoint, base<PxJoint>>("PxFixedJoint");
             // .function("setProjectionLinearTolerance", &PxFixedJoint::setProjectionLinearTolerance)     // ✅
             // .function("setProjectionAngularTolerance", &PxFixedJoint::setProjectionAngularTolerance);  // ✅
-    /* PhysXSphericalJoint ✅ */
-    // class_<PxSphericalJoint, base<PxJoint>>("PxSphericalJoint")
-    //         .function("setHardLimitCone", optional_override([](PxSphericalJoint &joint, PxReal yLimitAngle,
-    //                                                            PxReal zLimitAngle, PxReal contactDist) {
-    //                       joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftLimitCone", optional_override([](PxSphericalJoint &joint, PxReal yLimitAngle,
-    //                                                            PxReal zLimitAngle, PxReal stiffness, PxReal damping) {
-    //                       joint.setLimitCone(PxJointLimitCone(yLimitAngle, zLimitAngle, PxSpring(stiffness, damping)));
-    //                   }));  // ✅
-            // .function("setSphericalJointFlag", optional_override([](PxSphericalJoint &joint, PxReal flag, bool value) {
-            //               joint.setSphericalJointFlag(PxSphericalJointFlag::Enum(flag), value);
-            //           }))                                                                                // ✅
-            // .function("setProjectionLinearTolerance", &PxSphericalJoint::setProjectionLinearTolerance);  // ✅
     /* PhysXHingeJoint ✅ */
     class_<PxRevoluteJoint, base<PxJoint>>("PxRevoluteJoint")
             .function("getAngle", &PxRevoluteJoint::getAngle)        // ✅

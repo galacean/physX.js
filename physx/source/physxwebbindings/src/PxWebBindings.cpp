@@ -73,14 +73,6 @@ EMSCRIPTEN_BINDINGS(physx) {
                                                        actor1, PxTransform(localPosition1, localRotation1));
                       }),
                       allow_raw_pointers())  // ✅
-            .function("createSphericalJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxSphericalJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                        actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
             .function("createDistanceJoint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
