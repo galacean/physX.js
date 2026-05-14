@@ -54,7 +54,8 @@ struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxQueryFilterCallbackWrapper)
 
     PxQueryHitType::Enum postFilter(const PxFilterData &filterData, const PxQueryHit &hit) override {
-        return (PxQueryHitType::Enum)call<int>("postFilter", filterData, hit);
+        const PxLocationHit &locationHit = static_cast<const PxLocationHit &>(hit);
+        return (PxQueryHitType::Enum)call<int>("postFilter", filterData, locationHit.distance);
     }
 
     PxQueryHitType::Enum preFilter(const PxFilterData &filterData,
