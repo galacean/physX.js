@@ -1,5 +1,7 @@
 .DS_Store
 .idea
+.claude/
+docs/plans/
 cmake-build-debug
 cmake-build-release
 wasm_build
