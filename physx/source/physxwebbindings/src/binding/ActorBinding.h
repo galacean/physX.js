@@ -63,35 +63,35 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("addForce", optional_override([](PxRigidBody &body, const PxVec3 &force) {
                           body.addForce(force, PxForceMode::eFORCE, true);
                       }))  // ✅
-            // .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
-            //           }))
-            // .function("addForceAtLocalPos",
-            //           optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-            //           }))
-            // .function("addLocalForceAtLocalPos",
-            //           optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-            //           }))
-            // .function("addImpulseAtPos",
-            //           optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-            //           }))
-            // .function("addImpulseAtLocalPos",
-            //           optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-            //           }))
-            // .function("addLocalImpulseAtLocalPos",
-            //           optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-            //               PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-            //           }))
-            // .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
-            //               return PxRigidBodyExt::getVelocityAtPos(body, pos);
-            //           }))
-            // .function("getLocalVelocityAtLocalPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
-            //               return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
-            //           }))
+            .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addForceAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addLocalForceAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
+                          PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                      }))
+            .function("addImpulseAtPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("addImpulseAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("addLocalImpulseAtLocalPos",
+                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
+                          PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                      }))
+            .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
+                          return PxRigidBodyExt::getVelocityAtPos(body, pos);
+                      }))
+            .function("getLocalVelocityAtLocalPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
+                          return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
+                      }))
             .function("setRigidBodyFlag", &PxRigidBody::setRigidBodyFlag) // ✅
             .function("getRigidBodyFlags", optional_override([](PxRigidBody &body, PxRigidBodyFlag::Enum flag) {
                           return (bool)(body.getRigidBodyFlags() & flag);
