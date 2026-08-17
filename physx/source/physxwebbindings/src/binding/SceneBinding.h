@@ -35,6 +35,8 @@ struct PxContactPairWrapper {
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
 
+    void setContactEventEnabled(bool enabled) { contactEventEnabled = enabled; }
+
     void onConstraintBreak(PxConstraintInfo *, PxU32) override {}
 
     void onWake(PxActor **, PxU32) override {}
@@ -42,6 +44,10 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onSleep(PxActor **, PxU32) override {}
 
     void onContact(const PxContactPairHeader &, const PxContactPair *pairs, PxU32 nbPairs) override {
+        if (!contactEventEnabled) {
+            return;
+        }
+
         for (PxU32 i = 0; i < nbPairs; i++) {
             const PxContactPair &cp = pairs[i];
             PxContactPairWrapper wrapper(&cp);
@@ -75,7 +81,14 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     }
 
     void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
+
+private:
+    bool contactEventEnabled = true;
 };
+
+void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
+    static_cast<PxSimulationEventCallbackWrapper *>(callback)->setContactEventEnabled(enabled);
+}
 
 PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
     auto *sceneDesc = new PxSceneDesc(scale);
@@ -91,6 +104,7 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
 
 EMSCRIPTEN_BINDINGS(physx_scene) {
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers()); // ✅
+    function("setContactEventEnabled", &setContactEventEnabled, allow_raw_pointers());
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
     function("getGroupCollisionFlag", &physx::getGroupCollisionFlag);
