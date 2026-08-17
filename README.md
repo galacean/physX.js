@@ -33,8 +33,8 @@ Build outputs:
 
 | Variant | JS | WASM |
 |---------|-----|------|
-| Standard | [physx.release.js](https://mdn.alipayobjects.com/rms/afts/file/A*woU4RZ4qaDkAAAAAQ4AAAAgAehQnAQ/physx.release.js) | [physx.release.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*q1fzSJhCiCEAAAAAgCAAAAgAehQnAQ/physx.release.wasm) |
-| SIMD | [physx.release.simd.js](https://mdn.alipayobjects.com/rms/afts/file/A*WHp7S4HNupUAAAAAQ4AAAAgAehQnAQ/physx.release.simd.js) | [physx.release.simd.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*tBZPTaZVLdoAAAAAgDAAAAgAehQnAQ/physx.release.simd.wasm) |
+| Standard | [physx.release.js](https://mdn.alipayobjects.com/rms/afts/file/A*80s2Ro7Jg2oAAAAAQ4AAAAgAehQnAQ/physx.release.js) | [physx.release.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*ebCUTqDs0SAAAAAAgCAAAAgAehQnAQ/physx.release.wasm) |
+| SIMD | [physx.release.simd.js](https://mdn.alipayobjects.com/rms/afts/file/A*jfJjQasaRPEAAAAAQ4AAAAgAehQnAQ/physx.release.simd.js) | [physx.release.simd.wasm](https://mdn.alipayobjects.com/rms/afts/file/A*qHrFS5xJ8-cAAAAAgDAAAAgAehQnAQ/physx.release.simd.wasm) |
 
 ## TypeScript Bindings
 
