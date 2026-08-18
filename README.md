@@ -29,6 +29,13 @@ Build outputs:
 - `physx.debug.js` / `physx.debug.wasm` — debug build with PVD support (requires `BUILD_DEBUG=1`)
 - `physx.debug.simd.js` / `physx.debug.simd.wasm` — SIMD debug build (requires `BUILD_DEBUG=1`)
 
+## Development
+
+PhysX source and its build system live under `physx/`, with shared foundation code under `pxshared/`. The Embind entry
+point is `physx/source/physxwebbindings/src/PxWebBindings.cpp`, and individual API bindings live under
+`physx/source/physxwebbindings/src/binding/`. After changing a binding, run `./build.sh` and verify the paired JS/WASM
+outputs in `wasm_build/`.
+
 ## CDN
 
 | Variant | JS | WASM |
