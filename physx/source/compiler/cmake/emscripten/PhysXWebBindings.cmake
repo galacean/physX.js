@@ -26,6 +26,12 @@
 SET(EMSCRIPTEN_USE_ASSERTIONS "0")
 SET(EMSCRIPTEN_BASE_OPTIONS "--bind -flto -s MODULARIZE=1 -s EXPORT_NAME=PHYSX -s ALLOW_MEMORY_GROWTH=1 -s NO_DYNAMIC_EXECUTION=1 -s EXPORTED_FUNCTIONS=[_malloc,_free] -s EXPORTED_RUNTIME_METHODS=[HEAPF32,HEAPU16,HEAPU32]")
 
+IF(NOT DEFINED ENV{PX_ENABLE_SIMD})
+	# iOS 14 WebKit cannot compile WebAssembly bulk-memory instructions
+	# Prevent post-link optimization from reintroducing them in the non-SIMD fallback
+	SET(EMSCRIPTEN_BASE_OPTIONS "${EMSCRIPTEN_BASE_OPTIONS} -mno-bulk-memory-opt -mno-bulk-memory")
+ENDIF()
+
 
 SET(LL_SOURCE_DIR ${PHYSX_SOURCE_DIR}/physxwebbindings/src)
 
