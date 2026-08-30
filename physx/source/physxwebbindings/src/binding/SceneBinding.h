@@ -200,6 +200,27 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                                                 callback);
                       }),
                       allow_raw_pointers())  // ✅
+            .function("raycastMultiple",
+                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
+                                           const PxReal distance, PxU32 hitBufferSize,
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
+                          hitBufferSize = hitBufferSize > 0 ? hitBufferSize : 1;
+                          std::vector<PxRaycastHit> hits(hitBufferSize);
+                          bool blockingHit = false;
+                          PxI32 hitCount;
+                          do {
+                              hitCount = PxSceneQueryExt::raycastMultiple(
+                                  scene, origin, unitDir, distance, PxHitFlags(PxHitFlag::eDEFAULT), hits.data(),
+                                  static_cast<PxU32>(hits.size()), blockingHit, filterData, callback);
+                              if (hitCount < 0) {
+                                  hits.resize(hits.size() * 2);
+                              }
+                          } while (hitCount < 0);
+                          hits.resize(hitCount);
+                          return hits;
+                      }),
+                      allow_raw_pointers())
             .function("sweepSingle",
               optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
                                     const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit, 
@@ -265,6 +286,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("getNormal", optional_override([](PxRaycastHit &block) { return block.normal; }))
             .function("getPosition", optional_override([](PxRaycastHit &block) { return block.position; }))
             .function("getFaceIndex", optional_override([](PxRaycastHit &block) { return block.faceIndex; }));
+    register_vector<PxRaycastHit>("VectorPxRaycastHit");
     // class_<PxRaycastCallback>("PxRaycastCallback")
     //         .property("block", &PxRaycastCallback::block)
     //         .property("hasBlock", &PxRaycastCallback::hasBlock)
