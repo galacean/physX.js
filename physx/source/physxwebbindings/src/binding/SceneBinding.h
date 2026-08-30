@@ -206,19 +206,14 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                            const PxSceneQueryFilterData &filterData,
                                            PxQueryFilterCallbackWrapper *callback) {
                           hitBufferSize = hitBufferSize > 0 ? hitBufferSize : 1;
-                          std::vector<PxRaycastHit> hits(hitBufferSize);
-                          bool blockingHit = false;
-                          PxI32 hitCount;
-                          do {
-                              hitCount = PxSceneQueryExt::raycastMultiple(
-                                  scene, origin, unitDir, distance, PxHitFlags(PxHitFlag::eDEFAULT), hits.data(),
-                                  static_cast<PxU32>(hits.size()), blockingHit, filterData, callback);
-                              if (hitCount < 0) {
-                                  hits.resize(hits.size() * 2);
-                              }
-                          } while (hitCount < 0);
-                          hits.resize(hitCount);
-                          return hits;
+                          std::vector<PxRaycastHit> touchChunk(hitBufferSize);
+                          PxRaycastCallbackCollector hitCallback(touchChunk.data(), hitBufferSize);
+                          scene.raycast(origin, unitDir, distance, hitCallback,
+                                        PxHitFlags(PxHitFlag::eDEFAULT), filterData, callback);
+                          if (hitCallback.hasBlock) {
+                              hitCallback.hits.push_back(hitCallback.block);
+                          }
+                          return hitCallback.hits;
                       }),
                       allow_raw_pointers())
             .function("sweepSingle",
