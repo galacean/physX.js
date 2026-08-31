@@ -10,24 +10,21 @@
 using namespace physx;
 using namespace emscripten;
 
-// struct PxRaycastCallbackWrapper : public wrapper<PxRaycastCallback> {
-//     EMSCRIPTEN_WRAPPER(explicit PxRaycastCallbackWrapper)
+template <typename HitType>
+struct PxQueryCallbackCollector : PxHitCallback<HitType> {
+    std::vector<HitType> hits;
 
-//     PxAgain processTouches(const PxRaycastHit *buffer, PxU32 nbHits) override {
-//         for (PxU32 i = 0; i < nbHits; i++) {
-//             bool again = call<PxAgain>("processTouches", buffer[i]);
-//             if (!again) {
-//                 return false;
-//             }
-//         }
-//         return true;
-//     }
-// };
+    PxQueryCallbackCollector(HitType *touches, PxU32 maxNbTouches)
+        : PxHitCallback<HitType>(touches, maxNbTouches) {}
 
-// PxRaycastHit *allocateRaycastHitBuffers(PxU32 nb) {
-//     auto *myArray = new PxRaycastHit[nb];
-//     return myArray;
-// }
+    PxAgain processTouches(const HitType *buffer, PxU32 nbHits) override {
+        hits.insert(hits.end(), buffer, buffer + nbHits);
+        return true;
+    }
+};
+
+using PxRaycastCallbackCollector = PxQueryCallbackCollector<PxRaycastHit>;
+using PxOverlapCallbackCollector = PxQueryCallbackCollector<PxOverlapHit>;
 
 //----------------------------------------------------------------------------------------------------------------------
 // struct PxSweepCallbackWrapper : public wrapper<PxSweepCallback> {
