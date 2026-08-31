@@ -247,12 +247,13 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                            PxU32 hitBufferSize,
                                            const PxSceneQueryFilterData &filterData,
                                            PxQueryFilterCallbackWrapper *callback) {
-                          std::vector<PxOverlapHit> hits(hitBufferSize);  // Create buffer with requested size
-                          PxI32 hitCount = PxSceneQueryExt::overlapMultiple(scene, geometry, pose, 
-                                                                           hits.data(), hitBufferSize, 
-                                                                           filterData, callback);
-                          hits.resize(hitCount);  // Resize to actual hit count
-                          return hits;
+                          hitBufferSize = hitBufferSize > 0 ? hitBufferSize : 1;
+                          std::vector<PxOverlapHit> touchChunk(hitBufferSize);
+                          PxOverlapCallbackCollector hitCallback(touchChunk.data(), hitBufferSize);
+                          PxSceneQueryFilterData allHitsFilterData = filterData;
+                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
+                          scene.overlap(geometry, pose, hitCallback, allHitsFilterData, callback);
+                          return hitCallback.hits;
                       }),
                       allow_raw_pointers())  // ✅
            
