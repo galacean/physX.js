@@ -106,6 +106,12 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           return controller.setNonWalkableMode(PxControllerNonWalkableMode::Enum(mode));
                       }))                                                   // ✅
             .function("setContactOffset", &PxController::setContactOffset)  // ✅
+            .function("setMaterial", optional_override([](PxController &ctrl, PxMaterial &material) {
+                          PxShape *shape;
+                          ctrl.getActor()->getShapes(&shape, 1);
+                          PxMaterial *materialPtr = &material;
+                          shape->setMaterials(&materialPtr, 1);
+                      }))
             .function("setUpDirection", &PxController::setUpDirection)      // ✅
             .function("setSlopeLimit", &PxController::setSlopeLimit)        // ✅
             // .function("invalidateCache", &PxController::invalidateCache)    // ✅
