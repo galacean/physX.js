@@ -200,6 +200,22 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                                                 callback);
                       }),
                       allow_raw_pointers())  // ✅
+            .function("raycastMultiple",
+                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
+                                           const PxReal distance, PxU32 hitBufferSize,
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
+                          hitBufferSize = hitBufferSize > 0 ? hitBufferSize : 1;
+                          std::vector<PxRaycastHit> touchChunk(hitBufferSize);
+                          PxRaycastCallbackCollector hitCallback(touchChunk.data(), hitBufferSize);
+                          scene.raycast(origin, unitDir, distance, hitCallback,
+                                        PxHitFlags(PxHitFlag::eDEFAULT), filterData, callback);
+                          if (hitCallback.hasBlock) {
+                              hitCallback.hits.push_back(hitCallback.block);
+                          }
+                          return hitCallback.hits;
+                      }),
+                      allow_raw_pointers())
             .function("sweepSingle",
               optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
                                     const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit, 
@@ -231,12 +247,13 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                            PxU32 hitBufferSize,
                                            const PxSceneQueryFilterData &filterData,
                                            PxQueryFilterCallbackWrapper *callback) {
-                          std::vector<PxOverlapHit> hits(hitBufferSize);  // Create buffer with requested size
-                          PxI32 hitCount = PxSceneQueryExt::overlapMultiple(scene, geometry, pose, 
-                                                                           hits.data(), hitBufferSize, 
-                                                                           filterData, callback);
-                          hits.resize(hitCount);  // Resize to actual hit count
-                          return hits;
+                          hitBufferSize = hitBufferSize > 0 ? hitBufferSize : 1;
+                          std::vector<PxOverlapHit> touchChunk(hitBufferSize);
+                          PxOverlapCallbackCollector hitCallback(touchChunk.data(), hitBufferSize);
+                          PxSceneQueryFilterData allHitsFilterData = filterData;
+                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
+                          scene.overlap(geometry, pose, hitCallback, allHitsFilterData, callback);
+                          return hitCallback.hits;
                       }),
                       allow_raw_pointers())  // ✅
            
@@ -265,6 +282,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("getNormal", optional_override([](PxRaycastHit &block) { return block.normal; }))
             .function("getPosition", optional_override([](PxRaycastHit &block) { return block.position; }))
             .function("getFaceIndex", optional_override([](PxRaycastHit &block) { return block.faceIndex; }));
+    register_vector<PxRaycastHit>("VectorPxRaycastHit");
     // class_<PxRaycastCallback>("PxRaycastCallback")
     //         .property("block", &PxRaycastCallback::block)
     //         .property("hasBlock", &PxRaycastCallback::hasBlock)
