@@ -200,6 +200,22 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                                                                 callback);
                       }),
                       allow_raw_pointers())  // ✅
+            .function("raycastMultiple",
+                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
+                                           const PxReal distance, PxU32 /*hitBufferSize*/,
+                                           const PxSceneQueryFilterData &filterData,
+                                           PxQueryFilterCallbackWrapper *callback) {
+                          // Signature is kept for ABI compatibility; the buffer
+                          // size is an internal chunk detail, not a result cap.
+                          std::vector<PxRaycastHit> touchChunk(kPxQueryChunkSize);
+                          PxRaycastCallbackCollector hitCallback(touchChunk.data(), kPxQueryChunkSize);
+                          PxSceneQueryFilterData allHitsFilterData = filterData;
+                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
+                          scene.raycast(origin, unitDir, distance, hitCallback,
+                                        PxHitFlags(PxHitFlag::eDEFAULT), allHitsFilterData, callback);
+                          return hitCallback.hits;
+                      }),
+                      allow_raw_pointers())
             .function("sweepSingle",
               optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
                                     const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit, 
@@ -228,15 +244,17 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                       allow_raw_pointers())  // ✅
             .function("overlapMultiple",
                       optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-                                           PxU32 hitBufferSize,
+                                           PxU32 /*hitBufferSize*/,
                                            const PxSceneQueryFilterData &filterData,
                                            PxQueryFilterCallbackWrapper *callback) {
-                          std::vector<PxOverlapHit> hits(hitBufferSize);  // Create buffer with requested size
-                          PxI32 hitCount = PxSceneQueryExt::overlapMultiple(scene, geometry, pose, 
-                                                                           hits.data(), hitBufferSize, 
-                                                                           filterData, callback);
-                          hits.resize(hitCount);  // Resize to actual hit count
-                          return hits;
+                          // Signature is kept for ABI compatibility; the buffer
+                          // size is an internal chunk detail, not a result cap.
+                          std::vector<PxOverlapHit> touchChunk(kPxQueryChunkSize);
+                          PxOverlapCallbackCollector hitCallback(touchChunk.data(), kPxQueryChunkSize);
+                          PxSceneQueryFilterData allHitsFilterData = filterData;
+                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
+                          scene.overlap(geometry, pose, hitCallback, allHitsFilterData, callback);
+                          return hitCallback.hits;
                       }),
                       allow_raw_pointers())  // ✅
            
@@ -265,6 +283,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("getNormal", optional_override([](PxRaycastHit &block) { return block.normal; }))
             .function("getPosition", optional_override([](PxRaycastHit &block) { return block.position; }))
             .function("getFaceIndex", optional_override([](PxRaycastHit &block) { return block.faceIndex; }));
+    register_vector<PxRaycastHit>("VectorPxRaycastHit");
     // class_<PxRaycastCallback>("PxRaycastCallback")
     //         .property("block", &PxRaycastCallback::block)
     //         .property("hasBlock", &PxRaycastCallback::hasBlock)
