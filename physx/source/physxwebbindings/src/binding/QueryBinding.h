@@ -7,8 +7,17 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
+#include <algorithm>
+#include <vector>
+
 using namespace physx;
 using namespace emscripten;
+
+// Default chunk size for the native touch buffer used by all-hit scene queries.
+// The collector below drains each chunk via processTouches; this is NOT a cap on
+// the total number of returned hits. Kept small so a single query does not
+// allocate unbounded native memory when the caller passes a bogus size.
+constexpr PxU32 kPxQueryChunkSize = 256;
 
 template <typename HitType>
 struct PxQueryCallbackCollector : PxHitCallback<HitType> {
