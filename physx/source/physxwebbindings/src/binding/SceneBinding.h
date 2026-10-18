@@ -11,27 +11,6 @@
 using namespace physx;
 using namespace emscripten;
 
-struct PxContactPairWrapper {
-    const PxContactPair* pair;
-    uint32_t shape0Id;
-    uint32_t shape1Id;
-    PxU8 contactCount;
-
-
-    PxContactPairWrapper(const PxContactPair* p) : pair(p) {
-        shape0Id = getUUID(p->shapes[0]);
-        shape1Id = getUUID(p->shapes[1]);
-        contactCount = p->contactCount;
-        pair = p;
-    }
-
-    std::vector<PxContactPairPoint> getContacts() {
-      std::vector<PxContactPairPoint> contactPoints(contactCount);
-      pair->extractContacts(contactPoints.data(), contactCount);
-      return contactPoints;
-    }
-};
-
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
 
@@ -43,24 +22,38 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
 
     void onSleep(PxActor **, PxU32) override {}
 
-    void onContact(const PxContactPairHeader &, const PxContactPair *pairs, PxU32 nbPairs) override {
-        if (!contactEventEnabled) {
+    void onContact(const PxContactPairHeader &header, const PxContactPair *pairs, PxU32 nbPairs) override {
+        if (!contactEventEnabled || header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_0) ||
+            header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_1)) {
             return;
         }
 
         for (PxU32 i = 0; i < nbPairs; i++) {
             const PxContactPair &cp = pairs[i];
-            PxContactPairWrapper wrapper(&cp);
+            if (cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_0) ||
+                cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1)) {
+                continue;
+            }
+            contactPoints.resize(cp.contactCount);
+            const PxU32 count = cp.extractContacts(contactPoints.data(), cp.contactCount);
+            contactValues.resize(count * 10);
+            for (PxU32 j = 0; j < count; ++j) {
+                const PxContactPairPoint &point = contactPoints[j];
+                float *out = contactValues.data() + j * 10;
+                out[0] = point.position.x; out[1] = point.position.y; out[2] = point.position.z;
+                out[3] = point.normal.x; out[4] = point.normal.y; out[5] = point.normal.z;
+                out[6] = point.impulse.x; out[7] = point.impulse.y; out[8] = point.impulse.z;
+                out[9] = point.separation;
+            }
+            const PxU32 shape0ID = getUUID(cp.shapes[0]);
+            const PxU32 shape1ID = getUUID(cp.shapes[1]);
+            const val contacts(typed_memory_view(contactValues.size(), contactValues.data()));
             if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
-                call<void>("onContactBegin", wrapper);
+                call<void>("onContactBegin", shape0ID, shape1ID, contacts);
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (!cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_0) &&
-                    !cp.flags.isSet(PxContactPairFlag::Enum::eREMOVED_SHAPE_1)) {
-                    call<void>("onContactEnd", wrapper);
-;
-                }
+                call<void>("onContactEnd", shape0ID, shape1ID, contacts);
             } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS) {
-                call<void>("onContactPersist", wrapper);
+                call<void>("onContactPersist", shape0ID, shape1ID, contacts);
             }
         }
     }
@@ -84,6 +77,8 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
 
 private:
     bool contactEventEnabled = true;
+    std::vector<PxContactPairPoint> contactPoints;
+    std::vector<float> contactValues;
 };
 
 void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
@@ -121,21 +116,6 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     // function("setFilterBool", &physx::setFilterBool);
     // function("getFilterConstants", &physx::getFilterConstants);
     // function("setFilterConstants", &physx::setFilterConstants);
-
-    class_<PxContactPairPoint>("PxContactPairPoint")
-            .property("position", &PxContactPairPoint::position)
-            .property("normal", &PxContactPairPoint::normal)
-            .property("impulse", &PxContactPairPoint::impulse)
-            .property("separation", &PxContactPairPoint::separation);
-    register_vector<PxContactPairPoint>("VectorPxContactPairPoint");  // ✅
-
-            
-    class_<PxContactPairWrapper>("PxContactPairWrapper")
-            .constructor<const PxContactPair*>()
-            .property("shape0Id", &PxContactPairWrapper::shape0Id)
-            .property("shape1Id", &PxContactPairWrapper::shape1Id)
-            .property("contactCount", &PxContactPairWrapper::contactCount)
-            .function("getContacts", &PxContactPairWrapper::getContacts, allow_raw_pointers()); // ✅
 
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
             .allow_subclass<PxSimulationEventCallbackWrapper>("PxSimulationEventCallbackWrapper"); // ✅
@@ -181,163 +161,16 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("simulate", optional_override([](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
                           scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
                       }))  // ✅
-            // .function("raycast", &PxScene::raycast, allow_raw_pointers())
-            // .function("raycastAny", optional_override([](const PxScene &scene, const PxVec3 &origin,
-            //                                              const PxVec3 &unitDir, const PxReal distance, PxRaycastHit &hit,
-            //                                              const PxSceneQueryFilterData &filterData,
-            //                                              PxQueryFilterCallbackWrapper *callback) {
-            //               return PxSceneQueryExt::raycastAny(scene, origin, unitDir, distance, hit, filterData,
-            //                                                  callback);
-            //           }),
-            //           allow_raw_pointers())  // ✅
-            .function("raycastSingle",
-                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
-                                           const PxReal distance, PxRaycastHit &hit,
-                                           const PxSceneQueryFilterData &filterData,
-                                           PxQueryFilterCallbackWrapper *callback) {
-                          return PxSceneQueryExt::raycastSingle(scene, origin, unitDir, distance,
-                                                                PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData,
-                                                                callback);
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("raycastMultiple",
-                      optional_override([](const PxScene &scene, const PxVec3 &origin, const PxVec3 &unitDir,
-                                           const PxReal distance, PxU32 /*hitBufferSize*/,
-                                           const PxSceneQueryFilterData &filterData,
-                                           PxQueryFilterCallbackWrapper *callback) {
-                          // Signature is kept for ABI compatibility; the buffer
-                          // size is an internal chunk detail, not a result cap.
-                          std::vector<PxRaycastHit> touchChunk(kPxQueryChunkSize);
-                          PxRaycastCallbackCollector hitCallback(touchChunk.data(), kPxQueryChunkSize);
-                          PxSceneQueryFilterData allHitsFilterData = filterData;
-                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
-                          scene.raycast(origin, unitDir, distance, hitCallback,
-                                        PxHitFlags(PxHitFlag::eDEFAULT), allHitsFilterData, callback);
-                          return hitCallback.hits;
-                      }),
-                      allow_raw_pointers())
-            .function("sweepSingle",
-              optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-                                    const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit, 
-                                    const PxSceneQueryFilterData &filterData,
-                                    PxQueryFilterCallbackWrapper *callback) {
-                          return PxSceneQueryExt::sweepSingle(scene, geometry, pose, unitDir, distance,
-                                                            PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
-                      }),
-                      allow_raw_pointers())  // ✅
-            // .function("sweepAny",
-            //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-            //                                const PxVec3 &unitDir, const PxReal distance, PxSweepHit &hit,
-            //                                const PxSceneQueryFilterData &filterData,
-            //                                PxQueryFilterCallbackWrapper *callback) {
-            //               return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance,
-            //                                         PxHitFlags(PxHitFlag::eDEFAULT), hit, filterData, callback);
-            //           }),
-            //           allow_raw_pointers())  // ✅
-            .function("overlapAny",
-                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-                                           PxOverlapHit &hit,
-                                           const PxSceneQueryFilterData &filterData,
-                                           PxQueryFilterCallbackWrapper *callback) {
-                          return PxSceneQueryExt::overlapAny(scene, geometry, pose, hit, filterData, callback);
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("overlapMultiple",
-                      optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-                                           PxU32 /*hitBufferSize*/,
-                                           const PxSceneQueryFilterData &filterData,
-                                           PxQueryFilterCallbackWrapper *callback) {
-                          // Signature is kept for ABI compatibility; the buffer
-                          // size is an internal chunk detail, not a result cap.
-                          std::vector<PxOverlapHit> touchChunk(kPxQueryChunkSize);
-                          PxOverlapCallbackCollector hitCallback(touchChunk.data(), kPxQueryChunkSize);
-                          PxSceneQueryFilterData allHitsFilterData = filterData;
-                          allHitsFilterData.flags |= PxQueryFlag::eNO_BLOCK;
-                          scene.overlap(geometry, pose, hitCallback, allHitsFilterData, callback);
-                          return hitCallback.hits;
-                      }),
-                      allow_raw_pointers())  // ✅
-           
-            // .function("sweep", &PxScene::sweep, allow_raw_pointers())
-            // .function("sweepAny",
-            //           optional_override([](const PxScene &scene, const PxGeometry &geometry, const PxTransform &pose,
-            //                                const PxVec3 &unitDir, const PxReal distance, PxSceneQueryFlags queryFlags) {
-            //               PxSweepHit hit;
-            //               return PxSceneQueryExt::sweepAny(scene, geometry, pose, unitDir, distance, queryFlags, hit);
-            //           }))
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers())  // ✅
             .function("release", &PxScene::release); // ✅
-    class_<PxLocationHit>("PxLocationHit")
-            .property("position", &PxLocationHit::position)
-            .property("normal", &PxLocationHit::normal)
-            .property("distance", &PxLocationHit::distance); // ✅
-    class_<PxRaycastHit, base<PxLocationHit>>("PxRaycastHit")
-            .constructor<>()
-            .function("getShape", optional_override([](PxRaycastHit &block) { return block.shape; }),
-                      allow_raw_pointers()) // ✅
-            .function("getActor", optional_override([](PxRaycastHit &block) { return block.actor; }),
-                      allow_raw_pointers()) // ✅
-            .function("getDistance", optional_override([](PxRaycastHit &block) { return block.distance; }))
-            .function("getNormal", optional_override([](PxRaycastHit &block) { return block.normal; }))
-            .function("getPosition", optional_override([](PxRaycastHit &block) { return block.position; }))
-            .function("getFaceIndex", optional_override([](PxRaycastHit &block) { return block.faceIndex; }));
-    register_vector<PxRaycastHit>("VectorPxRaycastHit");
-    // class_<PxRaycastCallback>("PxRaycastCallback")
-    //         .property("block", &PxRaycastCallback::block)
-    //         .property("hasBlock", &PxRaycastCallback::hasBlock)
-    //         .allow_subclass<PxRaycastCallbackWrapper>("PxRaycastCallbackWrapper", constructor<PxRaycastHit *, PxU32>());
-    // class_<PxRaycastBuffer, base<PxRaycastCallback>>("PxRaycastBuffer").constructor<>();
-
-    // function("allocateRaycastHitBuffers", &allocateRaycastHitBuffers, allow_raw_pointers());
-
-    class_<PxSweepHit, base<PxLocationHit>>("PxSweepHit")
-            .constructor<>()
-            .function("getShape", optional_override([](PxSweepHit &block) { return block.shape; }),
-                      allow_raw_pointers())
-            .function("getActor", optional_override([](PxSweepHit &block) { return block.actor; }),
-                      allow_raw_pointers())
-            .function("getDistance", optional_override([](PxSweepHit &block) { return block.distance; }))
-            .function("getNormal", optional_override([](PxSweepHit &block) { return block.normal; }))
-            .function("getPosition", optional_override([](PxSweepHit &block) { return block.position; }))
-            .function("getFaceIndex", optional_override([](PxSweepHit &block) { return block.faceIndex; }));
-                    
-    // class_<PxSweepCallback>("PxSweepCallback")
-    //         .property("block", &PxSweepCallback::block)
-    //         .property("hasBlock", &PxSweepCallback::hasBlock)
-    //         .allow_subclass<PxSweepCallbackWrapper>("PxSweepCallbackWrapper", constructor<PxSweepHit *, PxU32>());
-    // class_<PxSweepBuffer, base<PxSweepCallback>>("PxSweepBuffer").constructor<>();
-
-    // function("allocateSweepHitBuffers", &allocateSweepHitBuffers, allow_raw_pointers());
-
-    // class_<PxHitFlags>("PxHitFlags").constructor<int>();
-    class_<PxQueryFilterData>("PxQueryFilterData").constructor<>().property("flags", &PxQueryFilterData::flags);
-    class_<PxQueryFlags>("PxQueryFlags").constructor<int>();
-    enum_<PxQueryFlag::Enum>("PxQueryFlag")
-            .value("eSTATIC", PxQueryFlag::Enum::eSTATIC)
-            .value("eDYNAMIC", PxQueryFlag::Enum::eDYNAMIC)
-            .value("ePREFILTER", PxQueryFlag::Enum::ePREFILTER)
-            .value("ePOSTFILTER", PxQueryFlag::Enum::ePOSTFILTER)
-            .value("eANY_HIT", PxQueryFlag::Enum::eANY_HIT)
-            .value("eNO_BLOCK", PxQueryFlag::Enum::eNO_BLOCK);
-    // enum_<PxQueryHitType::Enum>("PxQueryHitType")
-    //         .value("eNONE", PxQueryHitType::Enum::eNONE)
-    //         .value("eBLOCK", PxQueryHitType::Enum::eBLOCK)
-    //         .value("eTOUCH", PxQueryHitType::Enum::eTOUCH);
-
-    class_<PxQueryFilterCallback>("PxQueryFilterCallback")
-            .allow_subclass<PxQueryFilterCallbackWrapper>("PxQueryFilterCallbackWrapper", constructor<>());
-    // class_<PxQueryCache>("PxQueryCache");
-
-    class_<PxOverlapHit>("PxOverlapHit")
-            .constructor<>()
-            .function("getShape", optional_override([](PxOverlapHit &hit) { return hit.shape; }),
-                      allow_raw_pointers())
-            .function("getActor", optional_override([](PxOverlapHit &hit) { return hit.actor; }),
-                      allow_raw_pointers())
-            .function("getFaceIndex", optional_override([](PxOverlapHit &hit) { return hit.faceIndex; }));
-    register_vector<PxOverlapHit>("VectorPxOverlapHit");
+    class_<PxSceneQueries>("PxSceneQueries")
+            .constructor(optional_override([](PxScene *scene) { return new PxSceneQueries(scene); }), allow_raw_pointers())
+            .function("raycast", &PxSceneQueries::raycast)
+            .function("raycastAll", &PxSceneQueries::raycastAll)
+            .function("sweep", &PxSceneQueries::sweep)
+            .function("overlap", &PxSceneQueries::overlap);
 }
 
 namespace emscripten {
