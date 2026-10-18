@@ -1,73 +1,136 @@
-
 #pragma once
 
-#include "../SimulationFilterShader.h"
 #include "../BindingHelper.h"
 #include "PxPhysicsAPI.h"
-#include <emscripten.h>
 #include <emscripten/bind.h>
-
-#include <algorithm>
+#include <array>
 #include <vector>
 
 using namespace physx;
 using namespace emscripten;
 
-// Default chunk size for the native touch buffer used by all-hit scene queries.
-// The collector below drains each chunk via processTouches; this is NOT a cap on
-// the total number of returned hits. Kept small so a single query does not
-// allocate unbounded native memory when the caller passes a bogus size.
-constexpr PxU32 kPxQueryChunkSize = 256;
+struct SceneQueryFilter : PxQueryFilterCallback {
+    PxU32 layerMask;
+    PxQueryHitType::Enum hitType;
 
-template <typename HitType>
-struct PxQueryCallbackCollector : PxHitCallback<HitType> {
-    std::vector<HitType> hits;
+    SceneQueryFilter(PxU32 mask, bool single)
+        : layerMask(mask), hitType(single ? PxQueryHitType::eBLOCK : PxQueryHitType::eTOUCH) {}
 
-    PxQueryCallbackCollector(HitType *touches, PxU32 maxNbTouches)
-        : PxHitCallback<HitType>(touches, maxNbTouches) {}
+    PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
+                                   const PxRigidActor *, PxHitFlags &) override {
+        return isSceneQueryEnabled(*shape) && (layerMask & (1u << shape->getSimulationFilterData().word0))
+            ? hitType : PxQueryHitType::eNONE;
+    }
 
-    PxAgain processTouches(const HitType *buffer, PxU32 nbHits) override {
-        hits.insert(hits.end(), buffer, buffer + nbHits);
+    PxQueryHitType::Enum postFilter(const PxFilterData &, const PxQueryHit &hit) override {
+        return static_cast<const PxLocationHit &>(hit).distance > 0 ? hitType : PxQueryHitType::eNONE;
+    }
+};
+
+// Double precision preserves every 32-bit shape ID alongside the hit values
+struct SceneQueryHit {
+    double shapeID, distance, x, y, z, nx, ny, nz;
+
+    template <typename Hit>
+    explicit SceneQueryHit(const Hit &hit)
+        : shapeID(getUUID(hit.shape)), distance(hit.distance),
+          x(hit.position.x), y(hit.position.y), z(hit.position.z),
+          nx(hit.normal.x), ny(hit.normal.y), nz(hit.normal.z) {}
+};
+static_assert(sizeof(SceneQueryHit) == 8 * sizeof(double), "Scene query hit layout must be packed");
+
+struct RaycastCollector : PxRaycastCallback {
+    std::vector<SceneQueryHit> &hits;
+
+    RaycastCollector(PxRaycastHit *touches, PxU32 capacity, std::vector<SceneQueryHit> &results)
+        : PxRaycastCallback(touches, capacity), hits(results) {}
+
+    PxAgain processTouches(const PxRaycastHit *buffer, PxU32 count) override {
+        for (PxU32 i = 0; i < count; ++i) {
+            hits.emplace_back(buffer[i]);
+        }
         return true;
     }
 };
 
-using PxRaycastCallbackCollector = PxQueryCallbackCollector<PxRaycastHit>;
-using PxOverlapCallbackCollector = PxQueryCallbackCollector<PxOverlapHit>;
+struct OverlapCollector : PxOverlapCallback {
+    std::vector<PxU32> &shapeIDs;
 
-//----------------------------------------------------------------------------------------------------------------------
-// struct PxSweepCallbackWrapper : public wrapper<PxSweepCallback> {
-//     EMSCRIPTEN_WRAPPER(explicit PxSweepCallbackWrapper)
+    OverlapCollector(PxOverlapHit *touches, PxU32 capacity, std::vector<PxU32> &results)
+        : PxOverlapCallback(touches, capacity), shapeIDs(results) {}
 
-//     PxAgain processTouches(const PxSweepHit *buffer, PxU32 nbHits) override {
-//         for (PxU32 i = 0; i < nbHits; i++) {
-//             bool again = call<PxAgain>("processTouches", buffer[i]);
-//             if (!again) {
-//                 return false;
-//             }
-//         }
-//         return true;
-//     }
-// };
+    PxAgain processTouches(const PxOverlapHit *buffer, PxU32 count) override {
+        for (PxU32 i = 0; i < count; ++i) {
+            shapeIDs.push_back(getUUID(buffer[i].shape));
+        }
+        return true;
+    }
+};
 
-// PxSweepHit *allocateSweepHitBuffers(PxU32 nb) {
-//     auto *myArray = new PxSweepHit[nb];
-//     return myArray;
-// }
+class PxSceneQueries {
+    static constexpr PxU32 kTouchCount = 256;
+    PxScene &_scene;
+    std::array<PxRaycastHit, kTouchCount> _raycastTouches;
+    std::array<PxOverlapHit, kTouchCount> _overlapTouches;
+    std::vector<SceneQueryHit> _hits;
+    std::vector<PxU32> _shapeIDs;
 
-//----------------------------------------------------------------------------------------------------------------------
-struct PxQueryFilterCallbackWrapper : public wrapper<PxQueryFilterCallback> {
-    EMSCRIPTEN_WRAPPER(explicit PxQueryFilterCallbackWrapper)
-
-    PxQueryHitType::Enum postFilter(const PxFilterData &filterData, const PxQueryHit &hit) override {
-        const PxLocationHit &locationHit = static_cast<const PxLocationHit &>(hit);
-        return (PxQueryHitType::Enum)call<int>("postFilter", filterData, locationHit.distance);
+    val hitValues() const {
+        // Borrowed until the next query; layout is ID, distance, position.xyz, normal.xyz
+        return val(typed_memory_view(_hits.size() * 8, reinterpret_cast<const double *>(_hits.data())));
     }
 
-    PxQueryHitType::Enum preFilter(const PxFilterData &filterData,
-                                   const PxShape *shape,
-                                   const PxRigidActor *actor,
-                                   PxHitFlags &) override {
-        return (PxQueryHitType::Enum)call<int>("preFilter", filterData, getUUID(shape), getUUID(actor));
+    static PxQueryFilterData castFilterData() {
+        return PxQueryFilterData(PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC |
+                                 PxQueryFlag::ePREFILTER | PxQueryFlag::ePOSTFILTER);
+    }
+
+public:
+    explicit PxSceneQueries(PxScene *scene) : _scene(*scene) {}
+
+    val raycast(const PxVec3 &origin, const PxVec3 &direction, PxReal distance, PxU32 layerMask) {
+        _hits.clear();
+        if (distance > 0) {
+            SceneQueryFilter filter(layerMask, true);
+            PxRaycastBuffer result;
+            _scene.raycast(origin, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+            if (result.hasBlock) {
+                _hits.emplace_back(result.block);
+            }
+        }
+        return hitValues();
+    }
+
+    val raycastAll(const PxVec3 &origin, const PxVec3 &direction, PxReal distance, PxU32 layerMask) {
+        _hits.clear();
+        if (distance > 0) {
+            SceneQueryFilter filter(layerMask, false);
+            RaycastCollector result(_raycastTouches.data(), kTouchCount, _hits);
+            _scene.raycast(origin, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+        }
+        return hitValues();
+    }
+
+    val sweep(const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &direction,
+              PxReal distance, PxU32 layerMask) {
+        _hits.clear();
+        if (distance > 0) {
+            SceneQueryFilter filter(layerMask, true);
+            PxSweepBuffer result;
+            _scene.sweep(geometry, pose, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+            if (result.hasBlock) {
+                _hits.emplace_back(result.block);
+            }
+        }
+        return hitValues();
+    }
+
+    val overlap(const PxGeometry &geometry, const PxTransform &pose, PxU32 layerMask) {
+        _shapeIDs.clear();
+        SceneQueryFilter filter(layerMask, false);
+        OverlapCollector result(_overlapTouches.data(), kTouchCount, _shapeIDs);
+        const PxQueryFilterData data(PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
+        _scene.overlap(geometry, pose, result, data, &filter);
+        return val(typed_memory_view(_shapeIDs.size(), _shapeIDs.data()));
     }
 };

@@ -146,6 +146,11 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           actor->getShapes(&shape, 1);
                           shape->userData = ptr;
                       }))  // ✅
+            .function("setSceneQueryEnabled", optional_override([](PxController &ctrl, bool enabled) {
+                          PxShape *shape;
+                          ctrl.getActor()->getShapes(&shape, 1);
+                          setSceneQueryEnabled(*shape, enabled);
+                      }))
             .function("getActor", &PxController::getActor, allow_raw_pointers());  // ✅
 }
 

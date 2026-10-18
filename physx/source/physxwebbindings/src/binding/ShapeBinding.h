@@ -55,6 +55,12 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             // .function("getFlags", &PxShape::getFlags) 
             // .function("setFlag", &PxShape::setFlag)
             .function("setFlags", &PxShape::setFlags) // ✅
+            .function("setSceneQueryEnabled", optional_override([](PxShape &shape, bool enabled) {
+                          setSceneQueryEnabled(shape, enabled);
+                      }))
+            .function("isSceneQueryEnabled", optional_override([](const PxShape &shape) {
+                          return isSceneQueryEnabled(shape);
+                      }))
             .function("setLocalPose", &PxShape::setLocalPose) // ✅
             .function("setGeometry", &PxShape::setGeometry) // ✅
             // .function("getBoxGeometry", &PxShape::getBoxGeometry, allow_raw_pointers())
