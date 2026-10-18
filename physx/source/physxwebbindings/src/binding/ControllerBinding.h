@@ -149,7 +149,7 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
             .function("setSceneQueryEnabled", optional_override([](PxController &ctrl, bool enabled) {
                           PxShape *shape;
                           ctrl.getActor()->getShapes(&shape, 1);
-                          shape->setFlag(PxShapeFlag::eSCENE_QUERY_SHAPE, enabled);
+                          setSceneQueryEnabled(*shape, enabled);
                       }))
             .function("getActor", &PxController::getActor, allow_raw_pointers());  // ✅
 }

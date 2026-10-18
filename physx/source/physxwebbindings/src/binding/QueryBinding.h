@@ -18,7 +18,8 @@ struct SceneQueryFilter : PxQueryFilterCallback {
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
                                    const PxRigidActor *, PxHitFlags &) override {
-        return layerMask & (1u << shape->getSimulationFilterData().word0) ? hitType : PxQueryHitType::eNONE;
+        return isSceneQueryEnabled(*shape) && (layerMask & (1u << shape->getSimulationFilterData().word0))
+            ? hitType : PxQueryHitType::eNONE;
     }
 
     PxQueryHitType::Enum postFilter(const PxFilterData &, const PxQueryHit &hit) override {
