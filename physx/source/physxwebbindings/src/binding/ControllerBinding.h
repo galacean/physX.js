@@ -45,8 +45,8 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
     class_<PxControllerDesc>("PxControllerDesc")
             // .function("isValid", &PxControllerDesc::isValid)
             // .function("getType", &PxControllerDesc::getType)                          // ✅
-            // .property("position", &PxControllerDesc::position)                        // ✅
-            // .property("upDirection", &PxControllerDesc::upDirection)                  // ✅
+            .property("position", &PxControllerDesc::position)                        // ✅
+            .property("upDirection", &PxControllerDesc::upDirection)                  // ✅
             .property("slopeLimit", &PxControllerDesc::slopeLimit)                    // ✅
             .property("invisibleWallHeight", &PxControllerDesc::invisibleWallHeight)  // ✅
             .property("maxJumpHeight", &PxControllerDesc::maxJumpHeight)              // ✅
