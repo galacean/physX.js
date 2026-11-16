@@ -67,7 +67,9 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             // .function("getSphereGeometry", &PxShape::getSphereGeometry, allow_raw_pointers())
             // .function("getPlaneGeometry", &PxShape::getPlaneGeometry, allow_raw_pointers())
             // .function("getCapsuleGeometry", &PxShape::getCapsuleGeometry, allow_raw_pointers())
-            // .function("setSimulationFilterData", &PxShape::setSimulationFilterData, allow_raw_pointers())
+            .function("setGroup", optional_override([](PxShape &shape, PxU16 group) {
+                          return physx::setShapeGroup(shape, group);
+                      })) // ✅
             .function("setMaterial", optional_override([](PxShape &shape, PxMaterial& material) {
                           std::vector<PxMaterial*> materialsVector;
                           materialsVector.push_back(&material);

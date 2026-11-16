@@ -41,6 +41,7 @@ namespace physx {
 #endif
 
 class PxActor;
+class PxShape;
 
 /**
 \brief 64-bit mask used for collision filtering.
@@ -167,6 +168,22 @@ PxU16 getGroup(const PxActor& actor);
         @see PxGetGroup
 */
 void setGroup(PxActor& actor, const PxU16 collisionGroup);
+
+/**
+        \brief Sets the collision group of one shape in place.
+
+        Only the group word of the simulation filter data changes. Existing pairs are refiltered on the next
+        simulation step, so a pair that remains collidable keeps its touch/trigger state instead of being lost and
+        found again. Scene queries read the same group word.
+
+        \note Collision group is an integer between 0 and 31.
+
+        \param[in] shape The exclusive shape to update
+        \param[in] collisionGroup Collision group this shape belongs to
+
+        \return False if the group is out of range
+*/
+bool setShapeGroup(PxShape& shape, const PxU16 collisionGroup);
 
 /**
 \brief Retrieves filtering operation. See comments for GroupsMask

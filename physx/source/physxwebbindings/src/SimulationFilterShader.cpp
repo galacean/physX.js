@@ -154,16 +154,7 @@ static bool getFilterData(const PxActor& actor, PxFilterData& fd) {
     return true;
 }
 
-PX_FORCE_INLINE static void adjustFilterData(bool groupsMask, const PxFilterData& src, PxFilterData& dst) {
-    if (groupsMask) {
-        dst.word2 = src.word2;
-        dst.word3 = src.word3;
-    } else
-        dst.word0 = src.word0;
-}
-
-template <bool TGroupsMask>
-static void setFilterData(PxActor& actor, const PxFilterData& fd) {
+static void setGroupsMaskFilterData(PxActor& actor, const PxFilterData& fd) {
     PxActorType::Enum aType = actor.getType();
     switch (aType) {
         case PxActorType::eRIGID_DYNAMIC:
@@ -175,12 +166,9 @@ static void setFilterData(PxActor& actor, const PxFilterData& fd) {
             for (PxU32 i = 0; i < rActor.getNbShapes(); i++) {
                 rActor.getShapes(&shape, 1, i);
 
-                // retrieve current group mask
                 PxFilterData resultFd = shape->getSimulationFilterData();
-
-                adjustFilterData(TGroupsMask, fd, resultFd);
-
-                // set new filter data
+                resultFd.word2 = fd.word2;
+                resultFd.word3 = fd.word3;
                 shape->setSimulationFilterData(resultFd);
             }
         } break;
@@ -257,9 +245,34 @@ PxU16 physx::getGroup(const PxActor& actor) {
 }
 
 void physx::setGroup(PxActor& actor, const PxU16 collisionGroup) {
-    PX_CHECK_AND_RETURN(collisionGroup < 32, "Collision group must be less than 32");
-    PxFilterData fd(collisionGroup, 0, 0, 0);
-    setFilterData<false>(actor, fd);
+    PxActorType::Enum aType = actor.getType();
+    switch (aType) {
+        case PxActorType::eRIGID_DYNAMIC:
+        case PxActorType::eRIGID_STATIC:
+        case PxActorType::eARTICULATION_LINK: {
+            const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
+
+            PxShape* shape;
+            for (PxU32 i = 0; i < rActor.getNbShapes(); i++) {
+                rActor.getShapes(&shape, 1, i);
+                setShapeGroup(*shape, collisionGroup);
+            }
+        } break;
+        case PxActorType::eACTOR_COUNT:
+        case PxActorType::eACTOR_FORCE_DWORD:
+            break;
+    }
+}
+
+bool physx::setShapeGroup(PxShape& shape, const PxU16 collisionGroup) {
+    // Checked explicitly: PX_CHECK_* compiles away in release builds, and the query filter shifts by this value.
+    if (collisionGroup >= GROUP_SIZE) {
+        return false;
+    }
+    PxFilterData fd = shape.getSimulationFilterData();
+    fd.word0 = collisionGroup;
+    shape.setSimulationFilterData(fd);
+    return true;
 }
 
 void physx::getFilterOps(FilterOp::Enum& op0, FilterOp::Enum& op1, FilterOp::Enum& op2) {
@@ -297,6 +310,5 @@ GroupsMask physx::getGroupsMask(const PxActor& actor) {
 }
 
 void physx::setGroupsMask(PxActor& actor, const GroupsMask& mask) {
-    PxFilterData fd = convert(mask);
-    setFilterData<true>(actor, fd);
+    setGroupsMaskFilterData(actor, convert(mask));
 }
