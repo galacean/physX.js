@@ -1,0 +1,19 @@
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  s_87cc7a3b1b4ffa::t_dc0ff2a2a16474 48-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "abda471c9a380c548fdce284c8071dd8eeb036b4",
+  "prompts": {},
+  "sessions": {
+    "s_87cc7a3b1b4ffa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f72a317a-6fd5-4cfb-824b-a6a922a66a1d",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
