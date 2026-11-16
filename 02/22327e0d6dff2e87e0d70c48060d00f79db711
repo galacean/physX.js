@@ -1,0 +1,25 @@
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  s_87cc7a3b1b4ffa::t_13f0781d92d0c8 157,170-171,248-275,313
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  s_87cc7a3b1b4ffa::t_26a4f867189919 44,172-187
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_87cc7a3b1b4ffa::t_9c5aaeb85a1e04 7,29
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  s_87cc7a3b1b4ffa::t_a33aac91bdd5f4 70-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0222327e0d6dff2e87e0d70c48060d00f79db711",
+  "prompts": {},
+  "sessions": {
+    "s_87cc7a3b1b4ffa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f72a317a-6fd5-4cfb-824b-a6a922a66a1d",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
