@@ -4,7 +4,6 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include "../SimulationFilterShader.h"
 #include "PxPhysicsAPI.h"
 
 using namespace physx;
@@ -25,9 +24,6 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("release", &PxActor::release); // ✅
     class_<PxRigidActor, base<PxActor>>("PxRigidActor")
             .function("attachShape", &PxRigidActor::attachShape)                            // ✅
-            .function("attachShapeWithLayer", optional_override([](PxRigidActor &actor, PxShape &shape, PxU16 layer) {
-                          return physx::setShapeGroup(shape, layer) && actor.attachShape(shape);
-                      }))
             .function("detachShape", &PxRigidActor::detachShape)                            // ✅
             .function("getGlobalPose", &PxRigidActor::getGlobalPose, allow_raw_pointers())  // ✅
             .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers());  // ✅

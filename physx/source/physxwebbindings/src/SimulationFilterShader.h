@@ -183,7 +183,7 @@ void setGroup(PxActor& actor, const PxU16 collisionGroup);
 
         \return False if the group is out of range
 */
-bool setShapeGroup(PxShape& shape, const PxU16 collisionGroup);
+bool setShapeGroup(PxShape& shape, const PxU32 collisionGroup);
 
 /**
 \brief Retrieves filtering operation. See comments for GroupsMask

@@ -264,7 +264,7 @@ void physx::setGroup(PxActor& actor, const PxU16 collisionGroup) {
     }
 }
 
-bool physx::setShapeGroup(PxShape& shape, const PxU16 collisionGroup) {
+bool physx::setShapeGroup(PxShape& shape, const PxU32 collisionGroup) {
     // Checked explicitly: PX_CHECK_* compiles away in release builds, and the query filter shifts by this value.
     if (collisionGroup >= GROUP_SIZE) {
         return false;
