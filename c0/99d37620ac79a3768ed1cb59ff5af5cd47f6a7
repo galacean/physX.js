@@ -1,0 +1,19 @@
+physx/source/physxwebbindings/src/binding/JointBinding.h
+  s_eb7ebf3c3ff8b9::t_529daa1952debd 51-53,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c099d37620ac79a3768ed1cb59ff5af5cd47f6a7",
+  "prompts": {},
+  "sessions": {
+    "s_eb7ebf3c3ff8b9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ef5d-ae7e-7512-9057-6ffe80a3b716",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
