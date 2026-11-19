@@ -1,0 +1,34 @@
+physx/source/physxwebbindings/src/BindingHelper.h
+  h_dd004f51a3e5ec 4-5,8-11,15,19,32-51
+physx/source/physxwebbindings/src/PxWebBindings.cpp
+  h_dd004f51a3e5ec 8,64-68,76-81,89-94,102-107,115-119
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  h_dd004f51a3e5ec 60-61,145-147,150-151,158,232-243,248-251,253-257,262-264,281-284,299,302-304
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  h_dd004f51a3e5ec 132,145-152
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  h_dd004f51a3e5ec 12-16,34-40,55-62,64-71,80-83,89-91,94-96,99-101,105-107,111-113,117-119,123-125,129-131,144-146,154-158,160-167,171-183
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  h_dd004f51a3e5ec 4,9,15-49,122,129-147,152-156,159-164,166-171,173-182,187-190,193-196,203-213,215-219,223-226,229-233
+physx/source/physxwebbindings/src/binding/CookingBinding.h
+  h_dd004f51a3e5ec 21-25,32,46-50,66,78-81,98-100,109-111,143-145,154-157
+physx/source/physxwebbindings/src/binding/JointBinding.h
+  h_dd004f51a3e5ec 4,8,14-25,29-36,39-41,43-49,51-77,89-92,96-117,119,124-149
+physx/source/physxwebbindings/src/binding/QueryBinding.h
+  h_dd004f51a3e5ec 21-25,76,93,97-98,101-102,112-113,116-117,125-126,129-130,140-145
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  h_dd004f51a3e5ec 34,51-56,58-59,62-64,71-74,79,93-95,172-174,179-185
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  h_dd004f51a3e5ec 38,40-42,44,51-58,74-76,88,107-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5608c39c2f0103cd1606ba4db2ef1eea2b97cc8b",
+  "prompts": {},
+  "humans": {
+    "h_dd004f51a3e5ec": {
+      "author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
