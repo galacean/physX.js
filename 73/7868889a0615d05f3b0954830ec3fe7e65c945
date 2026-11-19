@@ -1,0 +1,21 @@
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  s_6e577c7c504f4f::t_72f1f479659437 170
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  s_6e577c7c504f4f::t_4e6ef8db54e8ae 247-251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "737868889a0615d05f3b0954830ec3fe7e65c945",
+  "prompts": {},
+  "sessions": {
+    "s_6e577c7c504f4f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f2ce-eaa2-74f4-bbbb-10c5421a34cc",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
