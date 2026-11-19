@@ -48,9 +48,17 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
     class_<PxRigidStatic, base<PxRigidActor>>("PxRigidStatic");
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidBody, base<PxRigidActor>>("PxRigidBody")
-            .function("setAngularDamping", &PxRigidBody::setAngularDamping)  // ✅
+            .function("setAngularDamping", optional_override([](PxRigidBody &body, PxReal angularDamping) {
+                          if (PxIsFinite(angularDamping) && angularDamping >= 0.0f) {
+                              body.setAngularDamping(angularDamping);
+                          }
+                      }))  // ✅
             // .function("getAngularDamping", &PxRigidBody::getAngularDamping)
-            .function("setLinearDamping", &PxRigidBody::setLinearDamping)  // ✅
+            .function("setLinearDamping", optional_override([](PxRigidBody &body, PxReal linearDamping) {
+                          if (PxIsFinite(linearDamping) && linearDamping >= 0.0f) {
+                              body.setLinearDamping(linearDamping);
+                          }
+                      }))  // ✅
             // .function("getLinearDamping", &PxRigidBody::getLinearDamping)
             .function("setAngularVelocity",
                       optional_override([](PxRigidBody &body, const PxVec3 &vel, bool autowake) {
@@ -70,11 +78,24 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           body.setLinearVelocity(vel, autowake);
                       }))                                                    // ✅
             .function("getLinearVelocity", &PxRigidBody::getLinearVelocity)  // ✅
-            .function("setMaxAngularVelocity", &PxRigidBody::setMaxAngularVelocity)  // ✅
+            .function("setMaxAngularVelocity", optional_override([](PxRigidBody &body, PxReal maxAngularVelocity) {
+                          if (PxIsFinite(maxAngularVelocity) && maxAngularVelocity >= 0.0f) {
+                              body.setMaxAngularVelocity(maxAngularVelocity);
+                          }
+                      }))  // ✅
             // .function("getMaxAngularVelocity", &PxRigidBody::getMaxAngularVelocity)
-            .function("setMaxDepenetrationVelocity", &PxRigidBody::setMaxDepenetrationVelocity)  // ✅
+            .function("setMaxDepenetrationVelocity",
+                      optional_override([](PxRigidBody &body, PxReal maxDepenetrationVelocity) {
+                          if (PxIsFinite(maxDepenetrationVelocity) && maxDepenetrationVelocity >= 0.0f) {
+                              body.setMaxDepenetrationVelocity(maxDepenetrationVelocity);
+                          }
+                      }))  // ✅
             // .function("getMaxDepenetrationVelocity", &PxRigidBody::getMaxDepenetrationVelocity)
-            .function("setMass", &PxRigidBody::setMass)  // ✅
+            .function("setMass", optional_override([](PxRigidBody &body, PxReal mass) {
+                          if (PxIsFinite(mass) && mass >= 0.0f) {
+                              body.setMass(mass);
+                          }
+                      }))  // ✅
             // .function("getMass", &PxRigidBody::getMass)
             .function("setCMassLocalPose", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
                           if (!pos.isFinite()) {
@@ -83,7 +104,11 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
                       }))                                                                    // ✅
             .function("getCMassLocalPose", &PxRigidBody::getCMassLocalPose)                  // ✅
-            .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor)  // ✅
+            .function("setMassSpaceInertiaTensor", optional_override([](PxRigidBody &body, const PxVec3 &inertia) {
+                          if (inertia.isFinite() && inertia.x >= 0.0f && inertia.y >= 0.0f && inertia.z >= 0.0f) {
+                              body.setMassSpaceInertiaTensor(inertia);
+                          }
+                      }))  // ✅
             .function("getMassSpaceInertiaTensor", &PxRigidBody::getMassSpaceInertiaTensor)  // ✅
             .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque) {
                           if (torque.isFinite() && canApplyDynamicForce(body)) {
@@ -148,9 +173,19 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                       })); // ✅
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidDynamic, base<PxRigidBody>>("PxRigidDynamic")
-            .function("setSleepThreshold", &PxRigidDynamic::setSleepThreshold)  // ✅
+            .function("setSleepThreshold", optional_override([](PxRigidDynamic &body, PxReal threshold) {
+                          if (PxIsFinite(threshold) && threshold >= 0.0f) {
+                              body.setSleepThreshold(threshold);
+                          }
+                      }))  // ✅
             // .function("getSleepThreshold", &PxRigidDynamic::getSleepThreshold)
-            .function("setSolverIterationCounts", &PxRigidDynamic::setSolverIterationCounts)  // ✅
+            .function("setSolverIterationCounts",
+                      optional_override([](PxRigidDynamic &body, PxU32 minPositionIters, PxU32 minVelocityIters) {
+                          if (minPositionIters >= 1 && minPositionIters <= 255 && minVelocityIters >= 1 &&
+                              minVelocityIters <= 255) {
+                              body.setSolverIterationCounts(minPositionIters, minVelocityIters);
+                          }
+                      }))  // ✅
             .function("wakeUp", optional_override([](PxRigidDynamic &body) {
                           if (canApplyDynamicForce(body)) {
                               body.wakeUp();

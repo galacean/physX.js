@@ -126,7 +126,8 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
             //           }))  // ✅
             .function("move", optional_override([](PxController &controller, const PxVec3 &disp, PxF32 minDist,
                                                    PxF32 elapsedTime) -> uint32_t {
-                          if (!disp.isFinite() || !PxIsFinite(minDist) || !PxIsFinite(elapsedTime)) {
+                          if (!disp.isFinite() || !PxIsFinite(minDist) || minDist < 0.0f ||
+                              !PxIsFinite(elapsedTime) || elapsedTime < 0.0f) {
                               return 0;
                           }
                           const PxU32 filterRevision = physx::getCollisionFilterRevision();

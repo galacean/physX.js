@@ -48,12 +48,12 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
                           joint.setBreakForce(force, torque);
                       }))  // ✅
             .function("setConstraintFlag", optional_override([](PxJoint &joint, int flag, bool value) {
-                          const auto constraintFlag = PxConstraintFlag::Enum(flag);
-                          if (constraintFlag == PxConstraintFlag::eBROKEN ||
-                              constraintFlag == PxConstraintFlag::eGPU_COMPATIBLE) {
+                          const int readOnlyMask = static_cast<int>(PxConstraintFlag::eBROKEN) |
+                                                   static_cast<int>(PxConstraintFlag::eGPU_COMPATIBLE);
+                          if ((flag & readOnlyMask) != 0) {
                               return;
                           }
-                          joint.setConstraintFlag(constraintFlag, value);
+                          joint.setConstraintFlag(PxConstraintFlag::Enum(flag), value);
                       }))  // ✅
             .function("setInvMassScale0", optional_override([](PxJoint &joint, PxReal invMassScale) {
                           if (PxIsFinite(invMassScale) && invMassScale >= 0.0f) {
