@@ -129,7 +129,7 @@ PxFilterFlags simulationFilterShader(PxFilterObjectAttributes attributes0,
 
         @see PxSetGroupCollisionFlag
 */
-bool getGroupCollisionFlag(const PxU16 group1, const PxU16 group2);
+bool getGroupCollisionFlag(const PxU32 group1, const PxU32 group2);
 
 /**
         \brief Specifies if collision should be performed by a pair of groups
@@ -142,7 +142,14 @@ bool getGroupCollisionFlag(const PxU16 group1, const PxU16 group2);
 
         @see PxGetGroupCollisionFlag
 */
-void setGroupCollisionFlag(const PxU16 group1, const PxU16 group2, const bool enable);
+void setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable);
+
+/**
+        \brief Monotonic revision bumped whenever collision layer matrix, shape groups, or shape trigger/simulation
+        flags change. Used by character controllers to invalidate cached static geometry without extra JS state.
+*/
+PxU32 getCollisionFilterRevision();
+void bumpCollisionFilterRevision();
 
 /**
         \brief Retrieves the value set with PxSetGroup()

@@ -35,26 +35,27 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
     // setMaterials has 'PxMaterial**' as an input, which is not representable with embind
     // This is overrided to use std::vector<PxMaterial*>
     class_<PxShape>("PxShape") // ✅
-            .function("release", optional_override([](PxShape &shape) {
-                          if (shape.userData) {
-                              free(shape.userData);
-                              shape.userData = nullptr;
-                          }
-                          shape.release();
-                      })) // ✅
+            .function("release", &PxShape::release) // ✅
             .function("getGlobalPose", optional_override([](PxShape &shape) {
-                          PxActor* actor = shape.getActor();
-                          if (actor){
-                            return shape.getActor()->getGlobalPose() * shape.getLocalPose();
+                          PxRigidActor *actor = shape.getActor();
+                          if (actor) {
+                              return actor->getGlobalPose() * shape.getLocalPose();
                           } else {
-                            return shape.getLocalPose();
+                              return shape.getLocalPose();
                           }
                       })) // ✅
             .function("setContactOffset", &PxShape::setContactOffset) // ✅
             // .function("getContactOffset", &PxShape::getContactOffset) 
             // .function("getFlags", &PxShape::getFlags) 
             // .function("setFlag", &PxShape::setFlag)
-            .function("setFlags", &PxShape::setFlags) // ✅
+            .function("setFlags", optional_override([](PxShape &shape, PxShapeFlags flags) {
+                          const PxShapeFlags prev = shape.getFlags();
+                          shape.setFlags(flags);
+                          const PxShapeFlags changed = prev ^ shape.getFlags();
+                          if (changed & (PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE)) {
+                              physx::bumpCollisionFilterRevision();
+                          }
+                      })) // ✅
             .function("setSceneQueryEnabled", optional_override([](PxShape &shape, bool enabled) {
                           setSceneQueryEnabled(shape, enabled);
                       }))
@@ -70,10 +71,9 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .function("setGroup", optional_override([](PxShape &shape, PxU32 group) {
                           return physx::setShapeGroup(shape, group);
                       })) // ✅
-            .function("setMaterial", optional_override([](PxShape &shape, PxMaterial& material) {
-                          std::vector<PxMaterial*> materialsVector;
-                          materialsVector.push_back(&material);
-                          return shape.setMaterials(materialsVector.data(), materialsVector.size());
+            .function("setMaterial", optional_override([](PxShape &shape, PxMaterial &material) {
+                          PxMaterial *materialPtr = &material;
+                          return shape.setMaterials(&materialPtr, 1);
                       }), allow_raw_pointers()) // ✅
             // .function("setMaterials", optional_override([](PxShape &shape, val materials) {
             //               int length = materials["length"].as<int>();
@@ -85,9 +85,7 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             //               return shape.setMaterials(materialsVector.data(), materialsVector.size());
             //           }))
             .function("setUUID", optional_override([](PxShape &shape, uint32_t uuid) {
-                          auto ptr = malloc(sizeof(uint32_t));
-                          memcpy(ptr, &uuid, sizeof(uint32_t));
-                          shape.userData = ptr;
+                          setUUID(shape, uuid);
                       })) // ✅
             .function("getUUID", optional_override([](PxShape &shape) {
                           return getUUID(&shape);
@@ -106,12 +104,15 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             .function("pointDistance", optional_override([](PxGeometry &geometry,
             PxTransform &pose, PxVec3 &point) {
                 PxVec3 closestPoint = PxVec3(0.0f);
-                PxReal distance = PxGeometryQuery::pointDistance(point, geometry, pose, &closestPoint);
-                          val res = val::object();
-                          res.set("distance", distance);
-                          res.set("closestPoint", closestPoint);
-                          return res;
-                      })); // ✅
+                PxReal distance = -1.0f;
+                if (point.isFinite() && pose.isSane() && PxGeometryQuery::isValid(geometry)) {
+                    distance = PxGeometryQuery::pointDistance(point, geometry, pose, &closestPoint);
+                }
+                val res = val::object();
+                res.set("distance", distance);
+                res.set("closestPoint", closestPoint);
+                return res;
+            })); // ✅
     /** PhysXBoxColliderShape ✅ */
     class_<PxBoxGeometry, base<PxGeometry>>("PxBoxGeometry")
             .constructor<>()

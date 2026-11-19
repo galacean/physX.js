@@ -9,6 +9,11 @@
 using namespace physx;
 using namespace emscripten;
 
+inline bool canApplyDynamicForce(const PxRigidBody &body) {
+    return body.getScene() != nullptr && !(body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC) &&
+           !(body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION);
+}
+
 EMSCRIPTEN_BINDINGS(physx_actor) {
     // enum_<PxForceMode::Enum>("PxForceMode")
     //         .value("eFORCE", PxForceMode::Enum::eFORCE)
@@ -26,7 +31,13 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("attachShape", &PxRigidActor::attachShape)                            // ✅
             .function("detachShape", &PxRigidActor::detachShape)                            // ✅
             .function("getGlobalPose", &PxRigidActor::getGlobalPose, allow_raw_pointers())  // ✅
-            .function("setGlobalPose", &PxRigidActor::setGlobalPose, allow_raw_pointers());  // ✅
+            .function("setGlobalPose",
+                      optional_override([](PxRigidActor &actor, const PxTransform &pose, bool autowake) {
+                          if (!pose.isSane()) {
+                              return;
+                          }
+                          actor.setGlobalPose(pose, autowake);
+                      }));  // ✅
             // .function("getShape", optional_override([](PxRigidActor &actor) {
             //               PxShape *shape;
             //               actor.getShapes(&shape, 1);
@@ -41,9 +52,23 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             // .function("getAngularDamping", &PxRigidBody::getAngularDamping)
             .function("setLinearDamping", &PxRigidBody::setLinearDamping)  // ✅
             // .function("getLinearDamping", &PxRigidBody::getLinearDamping)
-            .function("setAngularVelocity", &PxRigidBody::setAngularVelocity)  // ✅
+            .function("setAngularVelocity",
+                      optional_override([](PxRigidBody &body, const PxVec3 &vel, bool autowake) {
+                          if (!vel.isFinite() || (body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC) ||
+                              (body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION)) {
+                              return;
+                          }
+                          body.setAngularVelocity(vel, autowake);
+                      }))                                                    // ✅
             .function("getAngularVelocity", &PxRigidBody::getAngularVelocity) // ✅
-            .function("setLinearVelocity", &PxRigidBody::setLinearVelocity)  // ✅
+            .function("setLinearVelocity",
+                      optional_override([](PxRigidBody &body, const PxVec3 &vel, bool autowake) {
+                          if (!vel.isFinite() || (body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC) ||
+                              (body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION)) {
+                              return;
+                          }
+                          body.setLinearVelocity(vel, autowake);
+                      }))                                                    // ✅
             .function("getLinearVelocity", &PxRigidBody::getLinearVelocity)  // ✅
             .function("setMaxAngularVelocity", &PxRigidBody::setMaxAngularVelocity)  // ✅
             // .function("getMaxAngularVelocity", &PxRigidBody::getMaxAngularVelocity)
@@ -52,39 +77,58 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("setMass", &PxRigidBody::setMass)  // ✅
             // .function("getMass", &PxRigidBody::getMass)
             .function("setCMassLocalPose", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
-                          return body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
+                          if (!pos.isFinite()) {
+                              return;
+                          }
+                          body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
                       }))                                                                    // ✅
             .function("getCMassLocalPose", &PxRigidBody::getCMassLocalPose)                  // ✅
             .function("setMassSpaceInertiaTensor", &PxRigidBody::setMassSpaceInertiaTensor)  // ✅
             .function("getMassSpaceInertiaTensor", &PxRigidBody::getMassSpaceInertiaTensor)  // ✅
             .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque) {
-                          body.addTorque(torque, PxForceMode::eFORCE, true);
+                          if (torque.isFinite() && canApplyDynamicForce(body)) {
+                              body.addTorque(torque, PxForceMode::eFORCE, true);
+                          }
                       }))  // ✅
             .function("addForce", optional_override([](PxRigidBody &body, const PxVec3 &force) {
-                          body.addForce(force, PxForceMode::eFORCE, true);
+                          if (force.isFinite() && canApplyDynamicForce(body)) {
+                              body.addForce(force, PxForceMode::eFORCE, true);
+                          }
                       }))  // ✅
             .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
+                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
+                          }
                       }))
             .function("addForceAtLocalPos",
                       optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                          }
                       }))
             .function("addLocalForceAtLocalPos",
                       optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
+                          }
                       }))
             .function("addImpulseAtPos",
                       optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          }
                       }))
             .function("addImpulseAtLocalPos",
                       optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          }
                       }))
             .function("addLocalImpulseAtLocalPos",
                       optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
+                              PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
+                          }
                       }))
             .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
                           return PxRigidBodyExt::getVelocityAtPos(body, pos);
@@ -97,6 +141,9 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           return (bool)(body.getRigidBodyFlags() & flag);
                       }))  // ✅
             .function("setMassAndUpdateInertia", optional_override([](PxRigidBody &body, PxReal mass) {
+                          if (!PxIsFinite(mass) || mass <= 0.0f) {
+                              return false;
+                          }
                           return PxRigidBodyExt::setMassAndUpdateInertia(body, mass, nullptr, false);
                       })); // ✅
     /** PhysXDynamicCollider ✅ */
@@ -104,14 +151,36 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
             .function("setSleepThreshold", &PxRigidDynamic::setSleepThreshold)  // ✅
             // .function("getSleepThreshold", &PxRigidDynamic::getSleepThreshold)
             .function("setSolverIterationCounts", &PxRigidDynamic::setSolverIterationCounts)  // ✅
-            .function("wakeUp", &PxRigidDynamic::wakeUp)                                      // ✅
+            .function("wakeUp", optional_override([](PxRigidDynamic &body) {
+                          if (canApplyDynamicForce(body)) {
+                              body.wakeUp();
+                          }
+                      }))  // ✅
             // .function("setWakeCounter", &PxRigidDynamic::setWakeCounter)
-            .function("isSleeping", &PxRigidDynamic::isSleeping)  // ✅
-            .function("putToSleep", &PxRigidDynamic::putToSleep)  // ✅
+            .function("isSleeping", optional_override([](const PxRigidDynamic &body) {
+                          return body.getScene() ? body.isSleeping() : true;
+                      }))  // ✅
+            .function("putToSleep", optional_override([](PxRigidDynamic &body) {
+                          if (canApplyDynamicForce(body)) {
+                              body.putToSleep();
+                          }
+                      }))  // ✅
             // .function("getWakeCounter", &PxRigidDynamic::getWakeCounter)
             .function("setKinematicTarget",
                       optional_override([](PxRigidDynamic &body, const PxVec3 &pos, const PxQuat &rot) {
-                          return body.setKinematicTarget(PxTransform(pos, rot));
+                          if (!body.getScene() || !(body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC) ||
+                              (body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION) || !pos.isFinite() ||
+                              !rot.isSane()) {
+                              return;
+                          }
+                          body.setKinematicTarget(PxTransform(pos, rot));
+                      }))  // ✅
+            .function("getKinematicTarget", optional_override([](const PxRigidDynamic &body) -> val {
+                          PxTransform target;
+                          if (body.getKinematicTarget(target)) {
+                              return val(target);
+                          }
+                          return val::null();
                       }))  // ✅
             // .function("setRigidDynamicLockFlag", &PxRigidDynamic::setRigidDynamicLockFlag)
             .function("setRigidDynamicLockFlags", optional_override([](PxRigidDynamic &body, int flags) {

@@ -31,7 +31,7 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
         for (PxU32 i = 0; i < nbPairs; i++) {
             const PxContactPair &cp = pairs[i];
             if (cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_0) ||
-                cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1)) {
+                cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1) || !cp.shapes[0] || !cp.shapes[1]) {
                 continue;
             }
             contactPoints.resize(cp.contactCount);
@@ -48,12 +48,19 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             const PxU32 shape0ID = getUUID(cp.shapes[0]);
             const PxU32 shape1ID = getUUID(cp.shapes[1]);
             const val contacts(typed_memory_view(contactValues.size(), contactValues.data()));
-            if (cp.events & (PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_CCD)) {
+            const bool isFound = cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND);
+            const bool isPersists = cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_PERSISTS);
+            const bool isLost = cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_LOST);
+            const bool isPureCCDRetouch =
+                !isFound && !isPersists && !isLost && cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_CCD);
+            if (isFound || isPureCCDRetouch) {
                 call<void>("onContactBegin", shape0ID, shape1ID, contacts);
-            } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                call<void>("onContactEnd", shape0ID, shape1ID, contacts);
-            } else if (cp.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS) {
+            }
+            if (isPersists) {
                 call<void>("onContactPersist", shape0ID, shape1ID, contacts);
+            }
+            if (isLost) {
+                call<void>("onContactEnd", shape0ID, shape1ID, contacts);
             }
         }
     }
@@ -61,14 +68,15 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onTrigger(PxTriggerPair *pairs, PxU32 count) override {
         for (PxU32 i = 0; i < count; i++) {
             const PxTriggerPair &tp = pairs[i];
+            if (tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_OTHER) ||
+                tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_TRIGGER) || !tp.triggerShape || !tp.otherShape) {
+                continue;
+            }
 
             if (tp.status & PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 call<void>("onTriggerBegin", getUUID(tp.triggerShape), getUUID(tp.otherShape));
             } else if (tp.status & PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (!tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_OTHER) &&
-                    !tp.flags.isSet(PxTriggerPairFlag::Enum::eREMOVED_SHAPE_TRIGGER)) {
-                    call<void>("onTriggerEnd", getUUID(tp.triggerShape), getUUID(tp.otherShape));
-                }
+                call<void>("onTriggerEnd", getUUID(tp.triggerShape), getUUID(tp.otherShape));
             }
         }
     }
@@ -82,7 +90,9 @@ private:
 };
 
 void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
-    static_cast<PxSimulationEventCallbackWrapper *>(callback)->setContactEventEnabled(enabled);
+    if (callback) {
+        static_cast<PxSimulationEventCallbackWrapper *>(callback)->setContactEventEnabled(enabled);
+    }
 }
 
 PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
@@ -159,12 +169,20 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                           return fetched;
                       }))  // ✅
             .function("simulate", optional_override([](PxScene &scene, PxReal elapsedTime, bool controlSimulation) {
-                          scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
+                          if (PxIsFinite(elapsedTime) && elapsedTime > 0.0f) {
+                              scene.simulate(elapsedTime, nullptr, nullptr, 0, controlSimulation);
+                          }
                       }))  // ✅
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers())  // ✅
-            .function("release", &PxScene::release); // ✅
+            .function("release", optional_override([](PxScene &scene) {
+                          PxCpuDispatcher *dispatcher = scene.getCpuDispatcher();
+                          scene.release();
+                          if (dispatcher) {
+                              static_cast<PxDefaultCpuDispatcher *>(dispatcher)->release();
+                          }
+                      })); // ✅
     class_<PxSceneQueries>("PxSceneQueries")
             .constructor(optional_override([](PxScene *scene) { return new PxSceneQueries(scene); }), allow_raw_pointers())
             .function("raycast", &PxSceneQueries::raycast)

@@ -18,7 +18,11 @@ struct SceneQueryFilter : PxQueryFilterCallback {
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
                                    const PxRigidActor *, PxHitFlags &) override {
-        return isSceneQueryEnabled(*shape) && (layerMask & (1u << shape->getSimulationFilterData().word0))
+        if (!shape) {
+            return PxQueryHitType::eNONE;
+        }
+        const PxU32 group = shape->getSimulationFilterData().word0;
+        return group < 32 && isSceneQueryEnabled(*shape) && (layerMask & (1u << group))
             ? hitType : PxQueryHitType::eNONE;
     }
 
@@ -69,7 +73,7 @@ struct OverlapCollector : PxOverlapCallback {
 
 class PxSceneQueries {
     static constexpr PxU32 kTouchCount = 256;
-    PxScene &_scene;
+    PxScene *_scene;
     std::array<PxRaycastHit, kTouchCount> _raycastTouches;
     std::array<PxOverlapHit, kTouchCount> _overlapTouches;
     std::vector<SceneQueryHit> _hits;
@@ -86,14 +90,16 @@ class PxSceneQueries {
     }
 
 public:
-    explicit PxSceneQueries(PxScene *scene) : _scene(*scene) {}
+    explicit PxSceneQueries(PxScene *scene) : _scene(scene) {}
 
     val raycast(const PxVec3 &origin, const PxVec3 &direction, PxReal distance, PxU32 layerMask) {
         _hits.clear();
-        if (distance > 0) {
+        if (_scene && distance > 0 && PxIsFinite(distance) && origin.isFinite() && direction.isFinite() &&
+            direction.magnitudeSquared() > 0) {
             SceneQueryFilter filter(layerMask, true);
             PxRaycastBuffer result;
-            _scene.raycast(origin, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+            _scene->raycast(origin, direction.getNormalized(), distance, result, PxHitFlag::eDEFAULT,
+                            castFilterData(), &filter);
             if (result.hasBlock) {
                 _hits.emplace_back(result.block);
             }
@@ -103,10 +109,12 @@ public:
 
     val raycastAll(const PxVec3 &origin, const PxVec3 &direction, PxReal distance, PxU32 layerMask) {
         _hits.clear();
-        if (distance > 0) {
+        if (_scene && distance > 0 && PxIsFinite(distance) && origin.isFinite() && direction.isFinite() &&
+            direction.magnitudeSquared() > 0) {
             SceneQueryFilter filter(layerMask, false);
             RaycastCollector result(_raycastTouches.data(), kTouchCount, _hits);
-            _scene.raycast(origin, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+            _scene->raycast(origin, direction.getNormalized(), distance, result, PxHitFlag::eDEFAULT,
+                            castFilterData(), &filter);
         }
         return hitValues();
     }
@@ -114,10 +122,12 @@ public:
     val sweep(const PxGeometry &geometry, const PxTransform &pose, const PxVec3 &direction,
               PxReal distance, PxU32 layerMask) {
         _hits.clear();
-        if (distance > 0) {
+        if (_scene && distance > 0 && PxIsFinite(distance) && pose.isSane() && direction.isFinite() &&
+            direction.magnitudeSquared() > 0 && PxGeometryQuery::isValid(geometry)) {
             SceneQueryFilter filter(layerMask, true);
             PxSweepBuffer result;
-            _scene.sweep(geometry, pose, direction, distance, result, PxHitFlag::eDEFAULT, castFilterData(), &filter);
+            _scene->sweep(geometry, pose, direction.getNormalized(), distance, result, PxHitFlag::eDEFAULT,
+                          castFilterData(), &filter);
             if (result.hasBlock) {
                 _hits.emplace_back(result.block);
             }
@@ -127,10 +137,12 @@ public:
 
     val overlap(const PxGeometry &geometry, const PxTransform &pose, PxU32 layerMask) {
         _shapeIDs.clear();
-        SceneQueryFilter filter(layerMask, false);
-        OverlapCollector result(_overlapTouches.data(), kTouchCount, _shapeIDs);
-        const PxQueryFilterData data(PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
-        _scene.overlap(geometry, pose, result, data, &filter);
+        if (_scene && pose.isSane() && PxGeometryQuery::isValid(geometry)) {
+            SceneQueryFilter filter(layerMask, false);
+            OverlapCollector result(_overlapTouches.data(), kTouchCount, _shapeIDs);
+            const PxQueryFilterData data(PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
+            _scene->overlap(geometry, pose, result, data, &filter);
+        }
         return val(typed_memory_view(_shapeIDs.size(), _shapeIDs.data()));
     }
 };

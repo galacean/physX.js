@@ -57,6 +57,8 @@ private:
 
 PxCollisionBitMap gCollisionTable[GROUP_SIZE][GROUP_SIZE];
 
+PxU32 gCollisionFilterRevision = 1;
+
 FilterOp::Enum gFilterOps[3] = {FilterOp::PX_FILTEROP_AND, FilterOp::PX_FILTEROP_AND, FilterOp::PX_FILTEROP_AND};
 
 GroupsMask gFilterConstants[2];
@@ -138,20 +140,22 @@ static bool getFilterData(const PxActor& actor, PxFilterData& fd) {
         case PxActorType::eRIGID_STATIC:
         case PxActorType::eARTICULATION_LINK: {
             const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
-            PX_CHECK_AND_RETURN_VAL(rActor.getNbShapes() >= 1, "There must be a shape in actor", false);
 
             PxShape* shape = NULL;
-            rActor.getShapes(&shape, 1);
+            if (rActor.getShapes(&shape, 1) == 0 || !shape) {
+                return false;
+            }
 
             fd = shape->getSimulationFilterData();
-        } break;
+            return true;
+        }
 
         case PxActorType::eACTOR_COUNT:
         case PxActorType::eACTOR_FORCE_DWORD:
             break;
     }
 
-    return true;
+    return false;
 }
 
 static void setGroupsMaskFilterData(PxActor& actor, const PxFilterData& fd) {
@@ -225,22 +229,39 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
     return PxFilterFlag::eDEFAULT;
 }
 
-bool physx::getGroupCollisionFlag(const PxU16 group1, const PxU16 group2) {
-    PX_CHECK_AND_RETURN_NULL(group1 < 32 && group2 < 32, "Group must be less than 32");
+PxU32 physx::getCollisionFilterRevision() { return gCollisionFilterRevision; }
+
+void physx::bumpCollisionFilterRevision() {
+    if (++gCollisionFilterRevision == 0) {
+        gCollisionFilterRevision = 1;
+    }
+}
+
+bool physx::getGroupCollisionFlag(const PxU32 group1, const PxU32 group2) {
+    if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE) {
+        return false;
+    }
 
     return gCollisionTable[group1][group2]();
 }
 
-void physx::setGroupCollisionFlag(const PxU16 group1, const PxU16 group2, const bool enable) {
-    PX_CHECK_AND_RETURN(group1 < 32 && group2 < 32, "Group must be less than 32");
+void physx::setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable) {
+    if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE) {
+        return;
+    }
 
-    gCollisionTable[group1][group2] = enable;
-    gCollisionTable[group2][group1] = enable;
+    if (gCollisionTable[group1][group2]() != enable) {
+        gCollisionTable[group1][group2] = enable;
+        gCollisionTable[group2][group1] = enable;
+        bumpCollisionFilterRevision();
+    }
 }
 
 PxU16 physx::getGroup(const PxActor& actor) {
     PxFilterData fd;
-    getFilterData(actor, fd);
+    if (!getFilterData(actor, fd)) {
+        return 0;
+    }
     return PxU16(fd.word0);
 }
 
@@ -256,10 +277,11 @@ void physx::setGroup(PxActor& actor, const PxU32 collisionGroup) {
         case PxActorType::eARTICULATION_LINK: {
             const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
 
-            PxShape* shape;
             for (PxU32 i = 0; i < rActor.getNbShapes(); i++) {
-                rActor.getShapes(&shape, 1, i);
-                setShapeGroup(*shape, collisionGroup);
+                PxShape* shape = NULL;
+                if (rActor.getShapes(&shape, 1, i) == 1 && shape) {
+                    setShapeGroup(*shape, collisionGroup);
+                }
             }
         } break;
         case PxActorType::eACTOR_COUNT:
@@ -274,8 +296,12 @@ bool physx::setShapeGroup(PxShape& shape, const PxU32 collisionGroup) {
         return false;
     }
     PxFilterData fd = shape.getSimulationFilterData();
+    const bool changed = fd.word0 != collisionGroup;
     fd.word0 = collisionGroup;
     shape.setSimulationFilterData(fd);
+    if (changed) {
+        bumpCollisionFilterRevision();
+    }
     return true;
 }
 
