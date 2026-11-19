@@ -1,0 +1,28 @@
+physx/source/physxwebbindings/src/BindingHelper.h
+  h_dd004f51a3e5ec 4,11-23
+physx/source/physxwebbindings/src/PxWebBindings.cpp
+  h_dd004f51a3e5ec 51-53,55-57
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  h_dd004f51a3e5ec 32-33,40,251,253,260-318
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  h_dd004f51a3e5ec 44,146-154
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  h_dd004f51a3e5ec 7,184-189
+physx/source/physxwebbindings/src/binding/JointBinding.h
+  h_dd004f51a3e5ec 38-40,43
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  h_dd004f51a3e5ec 98-171,175-178,187-222,228-231,293
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  h_dd004f51a3e5ec 71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "af27d5e7e94b3bbba4f258f0983654de4efe1997",
+  "prompts": {},
+  "humans": {
+    "h_dd004f51a3e5ec": {
+      "author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
