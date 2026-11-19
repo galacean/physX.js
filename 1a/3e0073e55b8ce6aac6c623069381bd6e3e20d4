@@ -1,0 +1,25 @@
+physx/source/physxwebbindings/src/PxWebBindings.cpp
+  s_eb7ebf3c3ff8b9::t_a515bfad327c90 38
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  s_eb7ebf3c3ff8b9::t_ff95ed7ca14d27 276-280,284-285,289,310-312,317-318,320-334,337-341
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  s_eb7ebf3c3ff8b9::t_5552bfc6baad05 152-153
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_eb7ebf3c3ff8b9::t_b2120b14ee1500 109-122,168-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1a3e0073e55b8ce6aac6c623069381bd6e3e20d4",
+  "prompts": {},
+  "sessions": {
+    "s_eb7ebf3c3ff8b9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ef5d-ae7e-7512-9057-6ffe80a3b716",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
