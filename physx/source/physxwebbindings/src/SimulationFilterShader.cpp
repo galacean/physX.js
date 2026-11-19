@@ -273,14 +273,20 @@ void physx::refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, con
         return;
     }
 
+    struct SharedShapeRef {
+        PxRigidActor* actor;
+        PxShape* shape;
+    };
+
     std::vector<PxActor*> actors(nbActors);
     const PxU32 fetched = scene.getActors(actorTypes, actors.data(), nbActors);
     std::vector<PxShape*> shapes;
-    std::vector<PxShape*> sharedResetShapes;
+    std::vector<SharedShapeRef> sharedGroup1;
+    std::vector<SharedShapeRef> sharedGroup2;
 
     for (PxU32 i = 0; i < fetched; ++i) {
         PxRigidActor* rigidActor = actors[i] ? actors[i]->is<PxRigidActor>() : NULL;
-        if (!rigidActor) {
+        if (!rigidActor || (rigidActor->getActorFlags() & PxActorFlag::eDISABLE_SIMULATION)) {
             continue;
         }
         const PxU32 nbShapes = rigidActor->getNbShapes();
@@ -291,7 +297,6 @@ void physx::refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, con
             shapes.resize(nbShapes);
         }
         const PxU32 gotShapes = rigidActor->getShapes(shapes.data(), nbShapes);
-        sharedResetShapes.clear();
         for (PxU32 j = 0; j < gotShapes; ++j) {
             PxShape* shape = shapes[j];
             if (!shape) {
@@ -302,19 +307,38 @@ void physx::refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, con
                 continue;
             }
             const PxFilterData fd = shape->getSimulationFilterData();
-            if (fd.word0 != group1 && fd.word0 != group2) {
+            const bool inGroup1 = fd.word0 == group1;
+            const bool inGroup2 = fd.word0 == group2;
+            if (!inGroup1 && !inGroup2) {
                 continue;
             }
             if (shape->isExclusive()) {
                 // Re-setting filter data marks all filterable interactions (active, trigger, and suppressed markers)
-                // dirty in place without tearing down unrelated pairs on other layers.
+                // dirty in place without tearing down unrelated pairs on other layers — this also covers
+                // exclusive-vs-shared pairs without calling resetFiltering on the shared shape.
                 shape->setSimulationFilterData(fd);
-            } else if (!(rigidActor->getActorFlags() & PxActorFlag::eDISABLE_SIMULATION)) {
-                sharedResetShapes.push_back(shape);
+            } else if (inGroup1) {
+                sharedGroup1.push_back({rigidActor, shape});
+            } else {
+                sharedGroup2.push_back({rigidActor, shape});
             }
         }
-        if (!sharedResetShapes.empty()) {
-            scene.resetFiltering(*rigidActor, sharedResetShapes.data(), static_cast<PxU32>(sharedResetShapes.size()));
+    }
+
+    // PhysX forbids setSimulationFilterData on attached shared shapes, so shared-vs-shared pairs require
+    // per-shape scene.resetFiltering(actor, &shape, 1). Other shapes on the actor are spared, though PhysX
+    // unavoidably resets all pairs on that specific shared shape. Exclusive-vs-shared pairs are already handled above.
+    if (group1 == group2) {
+        if (sharedGroup1.size() >= 2) {
+            for (const SharedShapeRef& ref : sharedGroup1) {
+                scene.resetFiltering(*ref.actor, &ref.shape, 1);
+            }
+        }
+    } else if (!sharedGroup1.empty() && !sharedGroup2.empty()) {
+        const std::vector<SharedShapeRef>& toReset =
+            sharedGroup1.size() <= sharedGroup2.size() ? sharedGroup1 : sharedGroup2;
+        for (const SharedShapeRef& ref : toReset) {
+            scene.resetFiltering(*ref.actor, &ref.shape, 1);
         }
     }
 }

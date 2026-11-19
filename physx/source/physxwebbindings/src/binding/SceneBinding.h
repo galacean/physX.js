@@ -106,6 +106,20 @@ inline std::vector<ManagedSceneEntry> &managedScenes() {
     return scenes;
 }
 
+inline PxU32 &managedPhysicsRefCount() {
+    static PxU32 refCount = 0;
+    return refCount;
+}
+
+inline PxPhysics *createManagedPhysics(PxU32 version, PxFoundation &foundation, const PxTolerancesScale &scale,
+                                       bool trackOutstandingAllocations, PxPvd *pvd) {
+    PxPhysics *physics = PxCreateBasePhysics(version, foundation, scale, trackOutstandingAllocations, pvd);
+    if (physics) {
+        ++managedPhysicsRefCount();
+    }
+    return physics;
+}
+
 inline PxScene *createManagedScene(PxPhysics &physics, const PxSceneDesc &desc) {
     const PxTolerancesScale &physicsScale = physics.getTolerancesScale();
     const PxTolerancesScale &descScale = desc.getTolerancesScale();
@@ -151,6 +165,14 @@ inline void releaseManagedScene(PxScene &scene) {
 }
 
 inline void releaseManagedPhysics(PxPhysics &physics) {
+    PxU32 &refCount = managedPhysicsRefCount();
+    if (refCount > 1) {
+        --refCount;
+        physics.release();
+        return;
+    }
+
+    refCount = 0;
     std::vector<PxDefaultCpuDispatcher *> dispatchers;
     auto &scenes = managedScenes();
     for (auto it = scenes.begin(); it != scenes.end();) {

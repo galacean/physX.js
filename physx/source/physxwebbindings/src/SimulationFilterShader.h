@@ -149,7 +149,8 @@ bool setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool en
         \brief Refilters active and suppressed interactions in a scene for shapes in group1 or group2.
 
         Uses in-place simulation filter data updates on exclusive shapes so unrelated pairs keep their
-        touch/trigger state, falling back to PxScene::resetFiltering only for shared shapes.
+        touch/trigger state (including exclusive-vs-shared pairs). Falls back to per-shape
+        PxScene::resetFiltering only when shared-vs-shared pairs exist in the affected groups.
 */
 void refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, const PxU32 group2);
 

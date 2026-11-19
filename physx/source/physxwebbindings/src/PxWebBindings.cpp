@@ -35,7 +35,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
+    function("PxCreatePhysics", &createManagedPhysics, allow_raw_pointers());
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
