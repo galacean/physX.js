@@ -167,7 +167,7 @@ PxU16 getGroup(const PxActor& actor);
 
         @see PxGetGroup
 */
-void setGroup(PxActor& actor, const PxU16 collisionGroup);
+void setGroup(PxActor& actor, const PxU32 collisionGroup);
 
 /**
         \brief Sets the collision group of one shape in place.

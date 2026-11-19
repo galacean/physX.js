@@ -244,7 +244,11 @@ PxU16 physx::getGroup(const PxActor& actor) {
     return PxU16(fd.word0);
 }
 
-void physx::setGroup(PxActor& actor, const PxU16 collisionGroup) {
+void physx::setGroup(PxActor& actor, const PxU32 collisionGroup) {
+    if (collisionGroup >= GROUP_SIZE) {
+        return;
+    }
+
     PxActorType::Enum aType = actor.getType();
     switch (aType) {
         case PxActorType::eRIGID_DYNAMIC:
