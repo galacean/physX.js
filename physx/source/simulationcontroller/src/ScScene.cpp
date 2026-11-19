@@ -1328,6 +1328,32 @@ void Sc::Scene::notifyInteractionDeactivated(Interaction* interaction)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Sc::Scene::markFilterGroupPairDirty(PxU32 group1, PxU32 group2)
+{
+	static const InteractionType::Enum types[3] = {
+		InteractionType::eOVERLAP,
+		InteractionType::eTRIGGER,
+		InteractionType::eMARKER
+	};
+	for(PxU32 t = 0; t < 3; ++t)
+	{
+		Interaction* const* interactions = mInteractions[types[t]].begin();
+		const PxU32 count = mInteractions[types[t]].size();
+		for(PxU32 i = 0; i < count; ++i)
+		{
+			ElementSimInteraction* pair = static_cast<ElementSimInteraction*>(interactions[i]);
+			if(!pair->readInteractionFlag(InteractionFlag::eFILTERABLE))
+				continue;
+			const PxU32 g0 = static_cast<const ShapeSim&>(pair->getElement0()).getCore().getSimulationFilterData().word0;
+			const PxU32 g1 = static_cast<const ShapeSim&>(pair->getElement1()).getCore().getSimulationFilterData().word0;
+			if((g0 == group1 && g1 == group2) || (g0 == group2 && g1 == group1))
+				pair->setDirty(InteractionDirtyFlag::eFILTER_STATE);
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void** Sc::Scene::allocatePointerBlock(PxU32 size)
 {
 	PX_ASSERT(size>32 || size == 32 || size == 16 || size == 8);

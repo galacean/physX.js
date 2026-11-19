@@ -57,6 +57,7 @@ class PxSerializationRegistry;
 
 class PxPruningStructure;
 class PxBVHStructure;
+class PxCpuDispatcher;
 
 /**
 \brief Abstract singleton factory class used for instancing objects in the Physics SDK.
@@ -720,6 +721,13 @@ Before using this function the user must call #PxCreatePhysics().
 #endif
 
 PX_C_EXPORT PX_PHYSX_CORE_API physx::PxPhysics& PX_CALL_CONV PxGetPhysics();
+
+PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxMarkFilterGroupPairDirty(physx::PxU32 group1, physx::PxU32 group2);
+
+PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetSceneOwnedCpuDispatcher(
+	physx::PxScene& scene,
+	physx::PxCpuDispatcher* dispatcher,
+	void (*releaser)(physx::PxCpuDispatcher*));
 
 #ifdef __clang__
 #pragma clang diagnostic pop

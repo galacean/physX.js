@@ -111,6 +111,8 @@ NpScene::NpScene(const PxSceneDesc& desc) :
 	mSanityBounds			(desc.sanityBounds),
 	mNbClients				(1),			//we always have the default client.
 	mClientBehaviorFlags	(PX_DEBUG_EXP("sceneBehaviorFlags")),
+	mOwnedCpuDispatcher		(NULL),
+	mOwnedCpuDispatcherReleaser(NULL),
 	mSceneCompletion		(getContextId(), mPhysicsDone),
 	mCollisionCompletion	(getContextId(), mCollisionDone),
 	mSceneQueriesCompletion	(getContextId(), mSceneQueriesDone),
@@ -184,6 +186,13 @@ NpScene::~NpScene()
 		unlockWrite();
 
 	TlsFree(mThreadReadWriteDepth);
+
+	if (mOwnedCpuDispatcher && mOwnedCpuDispatcherReleaser)
+	{
+		mOwnedCpuDispatcherReleaser(mOwnedCpuDispatcher);
+		mOwnedCpuDispatcher = NULL;
+		mOwnedCpuDispatcherReleaser = NULL;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

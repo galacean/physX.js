@@ -466,6 +466,7 @@ namespace Sc
 
 					void						notifyInteractionActivated(Interaction* interaction);
 					void						notifyInteractionDeactivated(Interaction* interaction);
+					void						markFilterGroupPairDirty(PxU32 group1, PxU32 group2);
 
 	// for pool management of interaction arrays, a major cause of dynamic allocation
 					void**						allocatePointerBlock(PxU32 size);

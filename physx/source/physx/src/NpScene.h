@@ -282,6 +282,12 @@ class NpScene : public NpSceneQueries, public Ps::UserAllocated
 
 	PX_FORCE_INLINE	PxTaskManager*					getTaskManager()			const	{ return mTaskManager;			}
 
+	PX_FORCE_INLINE	void							setOwnedCpuDispatcher(PxCpuDispatcher* dispatcher, void (*releaser)(PxCpuDispatcher*))
+													{
+														mOwnedCpuDispatcher = dispatcher;
+														mOwnedCpuDispatcherReleaser = releaser;
+													}
+
 	PX_FORCE_INLINE Sc::SimulationStage::Enum		getSimulationStage()		const	{ return mScene.getSimulationStage(); }
 	PX_FORCE_INLINE void							setSimulationStage(Sc::SimulationStage::Enum stage) { mScene.setSimulationStage(stage); }
 
@@ -423,6 +429,8 @@ private:
 					
 					PxTaskManager*					mTaskManager;
 					PxCudaContextManager*			mCudaContextManager;
+					PxCpuDispatcher*				mOwnedCpuDispatcher;
+					void (*mOwnedCpuDispatcherReleaser)(PxCpuDispatcher*);
 					SceneCompletion					mSceneCompletion;
 					SceneCompletion					mCollisionCompletion;
 					SceneCompletion					mSceneQueriesCompletion;

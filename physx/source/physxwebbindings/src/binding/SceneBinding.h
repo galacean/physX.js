@@ -95,32 +95,11 @@ void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
     }
 }
 
-struct ManagedSceneEntry {
-    PxScene *scene;
-    PxPhysics *physics;
-    PxDefaultCpuDispatcher *ownedDispatcher;
-};
-
-inline std::vector<ManagedSceneEntry> &managedScenes() {
-    static std::vector<ManagedSceneEntry> scenes;
-    return scenes;
+inline void releaseDefaultCpuDispatcher(PxCpuDispatcher *dispatcher) {
+    static_cast<PxDefaultCpuDispatcher *>(dispatcher)->release();
 }
 
-inline PxU32 &managedPhysicsRefCount() {
-    static PxU32 refCount = 0;
-    return refCount;
-}
-
-inline PxPhysics *createManagedPhysics(PxU32 version, PxFoundation &foundation, const PxTolerancesScale &scale,
-                                       bool trackOutstandingAllocations, PxPvd *pvd) {
-    PxPhysics *physics = PxCreateBasePhysics(version, foundation, scale, trackOutstandingAllocations, pvd);
-    if (physics) {
-        ++managedPhysicsRefCount();
-    }
-    return physics;
-}
-
-inline PxScene *createManagedScene(PxPhysics &physics, const PxSceneDesc &desc) {
+inline PxScene *createSceneWithOwnedDispatcher(PxPhysics &physics, const PxSceneDesc &desc) {
     const PxTolerancesScale &physicsScale = physics.getTolerancesScale();
     const PxTolerancesScale &descScale = desc.getTolerancesScale();
     if (!desc.filterShader || descScale.length != physicsScale.length || descScale.speed != physicsScale.speed) {
@@ -143,58 +122,16 @@ inline PxScene *createManagedScene(PxPhysics &physics, const PxSceneDesc &desc) 
         }
         return nullptr;
     }
-
-    managedScenes().push_back({scene, &physics, ownedDispatcher});
-    return scene;
-}
-
-inline void releaseManagedScene(PxScene &scene) {
-    PxDefaultCpuDispatcher *ownedDispatcher = nullptr;
-    auto &scenes = managedScenes();
-    for (auto it = scenes.begin(); it != scenes.end(); ++it) {
-        if (it->scene == &scene) {
-            ownedDispatcher = it->ownedDispatcher;
-            scenes.erase(it);
-            break;
-        }
-    }
-    scene.release();
     if (ownedDispatcher) {
-        ownedDispatcher->release();
+        PxSetSceneOwnedCpuDispatcher(*scene, ownedDispatcher, &releaseDefaultCpuDispatcher);
     }
-}
-
-inline void releaseManagedPhysics(PxPhysics &physics) {
-    PxU32 &refCount = managedPhysicsRefCount();
-    if (refCount > 1) {
-        --refCount;
-        physics.release();
-        return;
-    }
-
-    refCount = 0;
-    std::vector<PxDefaultCpuDispatcher *> dispatchers;
-    auto &scenes = managedScenes();
-    for (auto it = scenes.begin(); it != scenes.end();) {
-        if (it->physics == &physics) {
-            if (it->ownedDispatcher) {
-                dispatchers.push_back(it->ownedDispatcher);
-            }
-            it = scenes.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    physics.release();
-    for (PxDefaultCpuDispatcher *dispatcher : dispatchers) {
-        dispatcher->release();
-    }
+    return scene;
 }
 
 PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
     auto *sceneDesc = new PxSceneDesc(scale);
     sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
-    // Defer dispatcher allocation to createManagedScene so each scene owns its own dispatcher even when
+    // Defer dispatcher allocation to createSceneWithOwnedDispatcher so each scene owns its own dispatcher even when
     // a single PxSceneDesc is reused across multiple createScene calls or discarded unused.
     sceneDesc->cpuDispatcher = nullptr;
     sceneDesc->userData = reinterpret_cast<void *>(static_cast<uintptr_t>(numThreads > 0 ? numThreads : 0));
@@ -218,15 +155,8 @@ inline bool getGroupCollisionFlagBinding(double group1, double group2) {
 inline void setGroupCollisionFlagBinding(double group1, double group2, bool enable) {
     PxU32 g1 = 0;
     PxU32 g2 = 0;
-    if (!tryParseCollisionGroup(group1, g1) || !tryParseCollisionGroup(group2, g2)) {
-        return;
-    }
-    if (physx::setGroupCollisionFlag(g1, g2, enable)) {
-        for (const ManagedSceneEntry &entry : managedScenes()) {
-            if (entry.scene) {
-                physx::refilterSceneCollisionGroups(*entry.scene, g1, g2);
-            }
-        }
+    if (tryParseCollisionGroup(group1, g1) && tryParseCollisionGroup(group2, g2)) {
+        physx::setGroupCollisionFlag(g1, g2, enable);
     }
 }
 
@@ -311,9 +241,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("createControllerManager",
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers())  // ✅
-            .function("release", optional_override([](PxScene &scene) {
-                          releaseManagedScene(scene);
-                      })); // ✅
+            .function("release", &PxScene::release); // ✅
     class_<PxSceneQueries>("PxSceneQueries")
             .constructor(optional_override([](PxScene *scene) { return new PxSceneQueries(scene); }), allow_raw_pointers())
             .function("raycast", &PxSceneQueries::raycast)

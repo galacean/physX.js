@@ -35,7 +35,7 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePhysics", &createManagedPhysics, allow_raw_pointers());
+    function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
@@ -48,12 +48,10 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     /** PhysXPhysics ✅ */
     class_<PxPhysics>("PxPhysics")
-            .function("release", optional_override([](PxPhysics &physics) {
-                          releaseManagedPhysics(physics);
-                      }))
+            .function("release", &PxPhysics::release)
             .function("getTolerancesScale", &PxPhysics::getTolerancesScale)
             .function("createScene", optional_override([](PxPhysics &physics, const PxSceneDesc &desc) {
-                          return createManagedScene(physics, desc);
+                          return createSceneWithOwnedDispatcher(physics, desc);
                       }), allow_raw_pointers())
             .function("createShape",
                       select_overload<PxShape *(const PxGeometry &, const PxMaterial &, bool, PxShapeFlags)>(
