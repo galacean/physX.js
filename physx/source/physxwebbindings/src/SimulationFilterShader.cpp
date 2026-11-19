@@ -29,12 +29,15 @@
 
 #include "SimulationFilterShader.h"
 
+#include <vector>
+
 #include "../../common/src/CmPhysXCommon.h"
 #include "PsAllocator.h"
 #include "PsFoundation.h"
 #include "PsInlineArray.h"
 #include "PsIntrinsics.h"
 #include "PxRigidActor.h"
+#include "PxScene.h"
 #include "PxShape.h"
 
 using namespace physx;
@@ -245,15 +248,74 @@ bool physx::getGroupCollisionFlag(const PxU32 group1, const PxU32 group2) {
     return gCollisionTable[group1][group2]();
 }
 
-void physx::setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable) {
+bool physx::setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable) {
     if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE) {
-        return;
+        return false;
     }
 
     if (gCollisionTable[group1][group2]() != enable) {
         gCollisionTable[group1][group2] = enable;
         gCollisionTable[group2][group1] = enable;
         bumpCollisionFilterRevision();
+        return true;
+    }
+    return false;
+}
+
+void physx::refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, const PxU32 group2) {
+    if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE) {
+        return;
+    }
+
+    const PxActorTypeFlags actorTypes = PxActorTypeFlag::eRIGID_STATIC | PxActorTypeFlag::eRIGID_DYNAMIC;
+    const PxU32 nbActors = scene.getNbActors(actorTypes);
+    if (nbActors == 0) {
+        return;
+    }
+
+    std::vector<PxActor*> actors(nbActors);
+    const PxU32 fetched = scene.getActors(actorTypes, actors.data(), nbActors);
+    std::vector<PxShape*> shapes;
+    std::vector<PxShape*> sharedResetShapes;
+
+    for (PxU32 i = 0; i < fetched; ++i) {
+        PxRigidActor* rigidActor = actors[i] ? actors[i]->is<PxRigidActor>() : NULL;
+        if (!rigidActor) {
+            continue;
+        }
+        const PxU32 nbShapes = rigidActor->getNbShapes();
+        if (nbShapes == 0) {
+            continue;
+        }
+        if (shapes.size() < nbShapes) {
+            shapes.resize(nbShapes);
+        }
+        const PxU32 gotShapes = rigidActor->getShapes(shapes.data(), nbShapes);
+        sharedResetShapes.clear();
+        for (PxU32 j = 0; j < gotShapes; ++j) {
+            PxShape* shape = shapes[j];
+            if (!shape) {
+                continue;
+            }
+            const PxShapeFlags flags = shape->getFlags();
+            if (!(flags & (PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE))) {
+                continue;
+            }
+            const PxFilterData fd = shape->getSimulationFilterData();
+            if (fd.word0 != group1 && fd.word0 != group2) {
+                continue;
+            }
+            if (shape->isExclusive()) {
+                // Re-setting filter data marks all filterable interactions (active, trigger, and suppressed markers)
+                // dirty in place without tearing down unrelated pairs on other layers.
+                shape->setSimulationFilterData(fd);
+            } else if (!(rigidActor->getActorFlags() & PxActorFlag::eDISABLE_SIMULATION)) {
+                sharedResetShapes.push_back(shape);
+            }
+        }
+        if (!sharedResetShapes.empty()) {
+            scene.resetFiltering(*rigidActor, sharedResetShapes.data(), static_cast<PxU32>(sharedResetShapes.size()));
+        }
     }
 }
 

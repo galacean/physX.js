@@ -68,8 +68,9 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             // .function("getSphereGeometry", &PxShape::getSphereGeometry, allow_raw_pointers())
             // .function("getPlaneGeometry", &PxShape::getPlaneGeometry, allow_raw_pointers())
             // .function("getCapsuleGeometry", &PxShape::getCapsuleGeometry, allow_raw_pointers())
-            .function("setGroup", optional_override([](PxShape &shape, PxU32 group) {
-                          return physx::setShapeGroup(shape, group);
+            .function("setGroup", optional_override([](PxShape &shape, double group) {
+                          PxU32 parsedGroup = 0;
+                          return tryParseCollisionGroup(group, parsedGroup) && physx::setShapeGroup(shape, parsedGroup);
                       })) // ✅
             .function("setMaterial", optional_override([](PxShape &shape, PxMaterial &material) {
                           PxMaterial *materialPtr = &material;

@@ -95,10 +95,87 @@ void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
     }
 }
 
+struct ManagedSceneEntry {
+    PxScene *scene;
+    PxPhysics *physics;
+    PxDefaultCpuDispatcher *ownedDispatcher;
+};
+
+inline std::vector<ManagedSceneEntry> &managedScenes() {
+    static std::vector<ManagedSceneEntry> scenes;
+    return scenes;
+}
+
+inline PxScene *createManagedScene(PxPhysics &physics, const PxSceneDesc &desc) {
+    const PxTolerancesScale &physicsScale = physics.getTolerancesScale();
+    const PxTolerancesScale &descScale = desc.getTolerancesScale();
+    if (!desc.filterShader || descScale.length != physicsScale.length || descScale.speed != physicsScale.speed) {
+        return nullptr;
+    }
+
+    PxSceneDesc descCopy = desc;
+    PxDefaultCpuDispatcher *ownedDispatcher = nullptr;
+    if (!descCopy.cpuDispatcher) {
+        const PxU32 numThreads = static_cast<PxU32>(reinterpret_cast<uintptr_t>(descCopy.userData));
+        descCopy.userData = nullptr;
+        ownedDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
+        descCopy.cpuDispatcher = ownedDispatcher;
+    }
+
+    PxScene *scene = descCopy.isValid() ? physics.createScene(descCopy) : nullptr;
+    if (!scene) {
+        if (ownedDispatcher) {
+            ownedDispatcher->release();
+        }
+        return nullptr;
+    }
+
+    managedScenes().push_back({scene, &physics, ownedDispatcher});
+    return scene;
+}
+
+inline void releaseManagedScene(PxScene &scene) {
+    PxDefaultCpuDispatcher *ownedDispatcher = nullptr;
+    auto &scenes = managedScenes();
+    for (auto it = scenes.begin(); it != scenes.end(); ++it) {
+        if (it->scene == &scene) {
+            ownedDispatcher = it->ownedDispatcher;
+            scenes.erase(it);
+            break;
+        }
+    }
+    scene.release();
+    if (ownedDispatcher) {
+        ownedDispatcher->release();
+    }
+}
+
+inline void releaseManagedPhysics(PxPhysics &physics) {
+    std::vector<PxDefaultCpuDispatcher *> dispatchers;
+    auto &scenes = managedScenes();
+    for (auto it = scenes.begin(); it != scenes.end();) {
+        if (it->physics == &physics) {
+            if (it->ownedDispatcher) {
+                dispatchers.push_back(it->ownedDispatcher);
+            }
+            it = scenes.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    physics.release();
+    for (PxDefaultCpuDispatcher *dispatcher : dispatchers) {
+        dispatcher->release();
+    }
+}
+
 PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSimulationEventCallback *callback) {
     auto *sceneDesc = new PxSceneDesc(scale);
     sceneDesc->gravity = PxVec3(0.0f, -9.81f, 0.0f);
-    sceneDesc->cpuDispatcher = PxDefaultCpuDispatcherCreate(numThreads);
+    // Defer dispatcher allocation to createManagedScene so each scene owns its own dispatcher even when
+    // a single PxSceneDesc is reused across multiple createScene calls or discarded unused.
+    sceneDesc->cpuDispatcher = nullptr;
+    sceneDesc->userData = reinterpret_cast<void *>(static_cast<uintptr_t>(numThreads > 0 ? numThreads : 0));
     sceneDesc->filterShader = physx::simulationFilterShader;
     sceneDesc->simulationEventCallback = callback;
     sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
@@ -107,15 +184,51 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     return sceneDesc;
 }
 
+inline bool getGroupCollisionFlagBinding(double group1, double group2) {
+    PxU32 g1 = 0;
+    PxU32 g2 = 0;
+    if (!tryParseCollisionGroup(group1, g1) || !tryParseCollisionGroup(group2, g2)) {
+        return false;
+    }
+    return physx::getGroupCollisionFlag(g1, g2);
+}
+
+inline void setGroupCollisionFlagBinding(double group1, double group2, bool enable) {
+    PxU32 g1 = 0;
+    PxU32 g2 = 0;
+    if (!tryParseCollisionGroup(group1, g1) || !tryParseCollisionGroup(group2, g2)) {
+        return;
+    }
+    if (physx::setGroupCollisionFlag(g1, g2, enable)) {
+        for (const ManagedSceneEntry &entry : managedScenes()) {
+            if (entry.scene) {
+                physx::refilterSceneCollisionGroups(*entry.scene, g1, g2);
+            }
+        }
+    }
+}
+
+inline PxU16 getGroupBinding(const PxActor *actor) {
+    return actor ? physx::getGroup(*actor) : 0;
+}
+
+inline void setGroupBinding(PxActor *actor, double collisionGroup) {
+    PxU32 group = 0;
+    if (!actor || !tryParseCollisionGroup(collisionGroup, group)) {
+        return;
+    }
+    physx::setGroup(*actor, group);
+}
+
 EMSCRIPTEN_BINDINGS(physx_scene) {
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers()); // ✅
     function("setContactEventEnabled", &setContactEventEnabled, allow_raw_pointers());
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
-    function("getGroupCollisionFlag", &physx::getGroupCollisionFlag);
-    function("setGroupCollisionFlag", &physx::setGroupCollisionFlag);
-    function("getGroup", &physx::getGroup, allow_raw_pointers());
-    function("setGroup", &physx::setGroup, allow_raw_pointers());
+    function("getGroupCollisionFlag", &getGroupCollisionFlagBinding);
+    function("setGroupCollisionFlag", &setGroupCollisionFlagBinding);
+    function("getGroup", &getGroupBinding, allow_raw_pointers());
+    function("setGroup", &setGroupBinding, allow_raw_pointers());
 
     // GroupsMask filter
     // function("getGroupsMask", &physx::getGroupsMask, allow_raw_pointers());
@@ -177,11 +290,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                       optional_override([](PxScene &scene) { return PxCreateControllerManager(scene); }),
                       allow_raw_pointers())  // ✅
             .function("release", optional_override([](PxScene &scene) {
-                          PxCpuDispatcher *dispatcher = scene.getCpuDispatcher();
-                          scene.release();
-                          if (dispatcher) {
-                              static_cast<PxDefaultCpuDispatcher *>(dispatcher)->release();
-                          }
+                          releaseManagedScene(scene);
                       })); // ✅
     class_<PxSceneQueries>("PxSceneQueries")
             .constructor(optional_override([](PxScene *scene) { return new PxSceneQueries(scene); }), allow_raw_pointers())

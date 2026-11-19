@@ -35,11 +35,12 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
                       }),
                       allow_raw_pointers())  // ✅
             .function("setLocalPose",
-                      optional_override([](PxJoint &joint, int actor, const PxVec3 &position, const PxQuat &rotation) {
-                          if ((actor != 0 && actor != 1) || !position.isFinite() || !rotation.isSane()) {
+                      optional_override([](PxJoint &joint, double actor, const PxVec3 &position, const PxQuat &rotation) {
+                          PxU32 actorIndex = 0;
+                          if (!tryParseIntRange(actor, 0u, 1u, actorIndex) || !position.isFinite() || !rotation.isSane()) {
                               return;
                           }
-                          joint.setLocalPose(PxJointActorIndex::Enum(actor), PxTransform(position, rotation));
+                          joint.setLocalPose(PxJointActorIndex::Enum(actorIndex), PxTransform(position, rotation));
                       }))  // ✅
             .function("setBreakForce", optional_override([](PxJoint &joint, PxReal force, PxReal torque) {
                           if (!sanitizeNonNegativeMaxF32(force) || !sanitizeNonNegativeMaxF32(torque)) {

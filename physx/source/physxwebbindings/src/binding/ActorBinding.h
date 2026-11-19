@@ -4,6 +4,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
+#include "../BindingHelper.h"
 #include "PxPhysicsAPI.h"
 
 using namespace physx;
@@ -180,10 +181,12 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                       }))  // ✅
             // .function("getSleepThreshold", &PxRigidDynamic::getSleepThreshold)
             .function("setSolverIterationCounts",
-                      optional_override([](PxRigidDynamic &body, PxU32 minPositionIters, PxU32 minVelocityIters) {
-                          if (minPositionIters >= 1 && minPositionIters <= 255 && minVelocityIters >= 1 &&
-                              minVelocityIters <= 255) {
-                              body.setSolverIterationCounts(minPositionIters, minVelocityIters);
+                      optional_override([](PxRigidDynamic &body, double minPositionIters, double minVelocityIters) {
+                          PxU32 posIters = 0;
+                          PxU32 velIters = 0;
+                          if (tryParseIntRange(minPositionIters, 1u, 255u, posIters) &&
+                              tryParseIntRange(minVelocityIters, 1u, 255u, velIters)) {
+                              body.setSolverIterationCounts(posIters, velIters);
                           }
                       }))  // ✅
             .function("wakeUp", optional_override([](PxRigidDynamic &body) {

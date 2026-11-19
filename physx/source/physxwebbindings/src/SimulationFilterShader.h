@@ -41,6 +41,7 @@ namespace physx {
 #endif
 
 class PxActor;
+class PxScene;
 class PxShape;
 
 /**
@@ -142,7 +143,15 @@ bool getGroupCollisionFlag(const PxU32 group1, const PxU32 group2);
 
         @see PxGetGroupCollisionFlag
 */
-void setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable);
+bool setGroupCollisionFlag(const PxU32 group1, const PxU32 group2, const bool enable);
+
+/**
+        \brief Refilters active and suppressed interactions in a scene for shapes in group1 or group2.
+
+        Uses in-place simulation filter data updates on exclusive shapes so unrelated pairs keep their
+        touch/trigger state, falling back to PxScene::resetFiltering only for shared shapes.
+*/
+void refilterSceneCollisionGroups(PxScene& scene, const PxU32 group1, const PxU32 group2);
 
 /**
         \brief Monotonic revision bumped whenever collision layer matrix, shape groups, or shape trigger/simulation

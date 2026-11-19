@@ -48,9 +48,13 @@ EMSCRIPTEN_BINDINGS(physx) {
 
     /** PhysXPhysics ✅ */
     class_<PxPhysics>("PxPhysics")
-            .function("release", &PxPhysics::release)
+            .function("release", optional_override([](PxPhysics &physics) {
+                          releaseManagedPhysics(physics);
+                      }))
             .function("getTolerancesScale", &PxPhysics::getTolerancesScale)
-            .function("createScene", &PxPhysics::createScene, allow_raw_pointers())
+            .function("createScene", optional_override([](PxPhysics &physics, const PxSceneDesc &desc) {
+                          return createManagedScene(physics, desc);
+                      }), allow_raw_pointers())
             .function("createShape",
                       select_overload<PxShape *(const PxGeometry &, const PxMaterial &, bool, PxShapeFlags)>(
                               &PxPhysics::createShape),
