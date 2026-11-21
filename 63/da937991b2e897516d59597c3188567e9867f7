@@ -1,0 +1,72 @@
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_d2c65ec75a2f3e::t_db272b0aa1940d 26,40-43,45-48,56,69-73,83,86,89
+  s_d2c65ec75a2f3e::t_f0086d6a61790c 170,176,179,183,210-220,240-241
+  s_d2c65ec75a2f3e::t_f1451b85ecef9b 57-59,68
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 242-243
+  s_d2c65ec75a2f3e::t_ca33e32bc026c2 19-25,27-28
+physx/source/physxwebbindings/src/binding/JointBinding.h
+  s_d2c65ec75a2f3e::t_d162cd322f4a53 5,60-62
+  s_d2c65ec75a2f3e::t_ddc65f1df53645 63-71,181-228
+physx/source/physxwebbindings/src/binding/QueryBinding.h
+  s_d2c65ec75a2f3e::t_82030d7afa078d 41-56,66
+  s_d2c65ec75a2f3e::t_56cb7cccc60d8d 59,65,68,70-71,74-75,77,103,107-118,121-128,139,143,145,154,158-160,167,171-181
+  s_d2c65ec75a2f3e::t_4f7f811e53088f 6,17-22,26,29-32,187,190
+physx/source/simulationcontroller/include/ScScene.h
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 469
+physx/include/PxPhysics.h
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 725
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_d2c65ec75a2f3e::t_e192faa4141bc1 82
+  s_d2c65ec75a2f3e::t_3043324a935b0a 19-23,106-108,110-117,125,127,130,132
+physx/source/physxwebbindings/src/PxWebBindings.cpp
+  s_d2c65ec75a2f3e::t_0a9f1ab2689f76 38-43
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 42,45-47,49-57,62
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  s_d2c65ec75a2f3e::t_f0086d6a61790c 39,167
+  s_d2c65ec75a2f3e::t_db272b0aa1940d 138
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 41-42,47-48,51-52,55-58,61-64,66-67,70-74,76-86,88-90,127,152-154,157-158,161-166,168-169,171-199,250-255
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  s_d2c65ec75a2f3e::t_d3cdb2a5a4f22d 236-239
+  s_d2c65ec75a2f3e::t_d1f53b27e65273 74
+  s_d2c65ec75a2f3e::t_3a8262f058dc88 7,52-73,75-96,125,147,149,151-152,205-207,221-224
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 16,20,22,27,29,38,48,219
+  s_d2c65ec75a2f3e::t_f0086d6a61790c 26
+  s_d2c65ec75a2f3e::t_e00474ae7d0634 112-122,124
+  s_d2c65ec75a2f3e::t_a8dd3e215a4c32 234,273
+  s_d2c65ec75a2f3e::t_b123155493f618 153,233,235,272,274-277,291-298,328-329
+  s_d2c65ec75a2f3e::t_1b75a0e00216db 97-111,148,150
+  s_d2c65ec75a2f3e::t_a8ceb3513efad7 325-327
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 14-31,57-72,74-76,105
+physx/source/simulationcontroller/src/ScConstraintSim.cpp
+  s_d2c65ec75a2f3e::t_068808d7e6914e 235-238
+  s_d2c65ec75a2f3e::t_d87b88fc233aba 56-70,111-113,126-128,130,196-198,200,239,254-255,303-304
+  s_d2c65ec75a2f3e::t_c7b2dc199c9082 305
+physx/source/simulationcontroller/src/ScScene.cpp
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 1331,1347-1351
+physx/source/physxwebbindings/src/BindingHelper.h
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 23-25
+  s_d2c65ec75a2f3e::t_78a5b27eb50bf1 29
+physx/source/physx/src/NpPhysics.cpp
+  s_d2c65ec75a2f3e::t_8a20f17e029f5f 717,719
+physx/source/simulationcontroller/src/ScNPhaseCore.cpp
+  s_d2c65ec75a2f3e::t_14c61dfa79d10d 467
+  s_d2c65ec75a2f3e::t_d87b88fc233aba 408-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "63da937991b2e897516d59597c3188567e9867f7",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
