@@ -1,0 +1,23 @@
+physx/source/simulationcontroller/src/ScShapeSim.cpp
+  s_d2c65ec75a2f3e::t_03a56071ce97fe 274
+physx/include/PxSimulationEventCallback.h
+  s_d2c65ec75a2f3e::t_03a56071ce97fe 871
+physx/include/PxShape.h
+  s_d2c65ec75a2f3e::t_03a56071ce97fe 98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "06a126c04503af572e0f991c8769fed200296c9a",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
