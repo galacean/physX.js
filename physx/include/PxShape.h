@@ -117,7 +117,14 @@ struct PxShapeFlag
 
 		Collision response and trigger reports are independent of this flag.
 		*/
-		eDISABLE_CONTACT_EVENTS			= (1<<4)
+		eDISABLE_CONTACT_EVENTS			= (1<<4),
+
+		/**
+		\brief Enable contact modification for simulation pairs involving this shape.
+
+		This flag applies to both discrete and CCD contacts. Setting it preserves collision eligibility and sleep state.
+		*/
+		eMODIFY_CONTACTS					= (1<<5)
 	};
 };
 

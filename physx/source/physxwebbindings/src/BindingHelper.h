@@ -46,6 +46,10 @@ inline void setShapeContactEventsEnabled(physx::PxShape& shape, bool enabled) {
     shape.setFlag(physx::PxShapeFlag::eDISABLE_CONTACT_EVENTS, !enabled);
 }
 
+inline void setShapeContactModificationEnabled(physx::PxShape& shape, bool enabled) {
+    shape.setFlag(physx::PxShapeFlag::eMODIFY_CONTACTS, enabled);
+}
+
 inline void setSceneQueryEnabled(physx::PxShape& shape, bool enabled) {
     // Native query flags must stay enabled for character-controller collision queries
     physx::PxFilterData data = shape.getQueryFilterData();

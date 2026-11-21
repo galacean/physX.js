@@ -42,6 +42,7 @@
 		{ "eTRIGGER_SHAPE", static_cast<PxU32>( physx::PxShapeFlag::eTRIGGER_SHAPE ) },
 		{ "eVISUALIZATION", static_cast<PxU32>( physx::PxShapeFlag::eVISUALIZATION ) },
 		{ "eDISABLE_CONTACT_EVENTS", static_cast<PxU32>( physx::PxShapeFlag::eDISABLE_CONTACT_EVENTS ) },
+		{ "eMODIFY_CONTACTS", static_cast<PxU32>( physx::PxShapeFlag::eMODIFY_CONTACTS ) },
 		{ NULL, 0 }
 	};
 

@@ -106,6 +106,7 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
                           setShapeFlags(shape, previous, flags);
                       }))
             .function("setContactEventsEnabled", &setShapeContactEventsEnabled)
+            .function("setContactModificationEnabled", &setShapeContactModificationEnabled)
             .function("setSceneQueryEnabled", optional_override([](PxShape &shape, bool enabled) {
                           setSceneQueryEnabled(shape, enabled);
                       }))

@@ -272,6 +272,8 @@ void ShapeSim::onFlagChange(PxShapeFlags oldFlags)
 		const bool isTrigger = hasTriggerFlags(newFlags)!=0;
 		if(wasTrigger != isTrigger)
 			reinsertBroadPhase();  // Rebuild pairs when the broad-phase trigger category changes.
+		else if(newBp && !isTrigger && ((oldFlags ^ newFlags) & PxShapeFlag::eMODIFY_CONTACTS))
+			onFilterDataChange();
 	}
 
 	const PxShapeFlags hadSq = oldFlags & PxShapeFlag::eSCENE_QUERY_SHAPE;

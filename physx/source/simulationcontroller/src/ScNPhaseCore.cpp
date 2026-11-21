@@ -162,6 +162,11 @@ static PX_INLINE void checkFilterFlags(PxFilterFlags& filterFlags)
 
 static PX_FORCE_INLINE PxPairFlags checkRbPairFlags(const ShapeSim& s0, const ShapeSim& s1, PxPairFlags pairFlags)
 {
+	const PxU32 shapeFlags = s0.getFlags() | s1.getFlags();
+	if((shapeFlags & PxShapeFlag::eMODIFY_CONTACTS) && !(shapeFlags & PxShapeFlag::eTRIGGER_SHAPE) &&
+		(pairFlags & (PxPairFlag::eDETECT_DISCRETE_CONTACT | PxPairFlag::eDETECT_CCD_CONTACT)))
+		pairFlags |= PxPairFlag::eMODIFY_CONTACTS;
+
 #if PX_CHECKED
 	// we want to avoid to run contact generation for pairs that should not get resolved or have no contact/trigger reports
 	if (!(PxU32(pairFlags) & (PxPairFlag::eSOLVE_CONTACT | ShapeInteraction::CONTACT_REPORT_EVENTS)))
@@ -173,14 +178,11 @@ static PX_FORCE_INLINE PxPairFlags checkRbPairFlags(const ShapeSim& s0, const Sh
 		Ps::getFoundation().error(PxErrorCode::eDEBUG_WARNING,  __FILE__, __LINE__, "Filtering: Pair did not request either eDETECT_DISCRETE_CONTACT or eDETECT_CCD_CONTACT. It is recommended to suppress/kill such pairs for performance reasons.");
 	}
 
-	if(((s0.getFlags() & PxShapeFlag::eTRIGGER_SHAPE)!=0 || (s1.getFlags() & PxShapeFlag::eTRIGGER_SHAPE)!=0) &&
+	if((shapeFlags & PxShapeFlag::eTRIGGER_SHAPE) &&
 		(pairFlags & PxPairFlag::eTRIGGER_DEFAULT) && (pairFlags & PxPairFlag::eDETECT_CCD_CONTACT))
 	{
 		Ps::getFoundation().error(PxErrorCode::eDEBUG_WARNING,  __FILE__, __LINE__, "Filtering: CCD isn't supported on Triggers yet");
 	}
-#else
-	PX_UNUSED(s0);
-	PX_UNUSED(s1);
 #endif
 	return pairFlags;
 }

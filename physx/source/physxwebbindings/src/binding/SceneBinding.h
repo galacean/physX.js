@@ -5,6 +5,7 @@
 #include <emscripten/bind.h>
 
 #include "../SimulationFilterShader.h"
+#include "ContactModificationBinding.h"
 #include "PxPhysicsAPI.h"
 #include "QueryBinding.h"
 
@@ -208,6 +209,33 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
             .allow_subclass<PxSimulationEventCallbackWrapper>("PxSimulationEventCallbackWrapper"); // ✅
 
+    class_<PxContactModificationCallback>("PxContactModificationCallback")
+            .constructor<val>()
+            .property("pairCount", &PxContactModificationCallback::getPairCount)
+            .property("isCCD", &PxContactModificationCallback::isCCD)
+            .function("getColliderId", &PxContactModificationCallback::getColliderId)
+            .function("getContactCount", &PxContactModificationCallback::getContactCount)
+            .function("getPoint", &PxContactModificationCallback::getPoint)
+            .function("getNormal", &PxContactModificationCallback::getNormal)
+            .function("setPoint", &PxContactModificationCallback::setPoint)
+            .function("setNormal", &PxContactModificationCallback::setNormal)
+            .function("ignoreContact", &PxContactModificationCallback::ignoreContact)
+            .function("setMaxImpulse", &PxContactModificationCallback::setMaxImpulse)
+            .function("setRestitution", &PxContactModificationCallback::setRestitution)
+            .function("getSeparation", &PxContactModificationCallback::getSeparation)
+            .function("setSeparation", &PxContactModificationCallback::setSeparation)
+            .function("setTargetVelocity", &PxContactModificationCallback::setTargetVelocity)
+            .function("setStaticFriction", optional_override([](const PxContactModificationCallback &batch,
+                        double pair, double contact, PxReal value) {
+                          batch.setFriction(pair, contact, value, &PxContactSet::setStaticFriction);
+                      }))
+            .function("setDynamicFriction", optional_override([](const PxContactModificationCallback &batch,
+                        double pair, double contact, PxReal value) {
+                          batch.setFriction(pair, contact, value, &PxContactSet::setDynamicFriction);
+                      }))
+            .function("setInverseMassScale", &PxContactModificationCallback::setInverseMassScale)
+            .function("setInverseInertiaScale", &PxContactModificationCallback::setInverseInertiaScale);
+
     class_<PxSceneDesc>("PxSceneDesc")
             .constructor<PxTolerancesScale>()
             .property("gravity", &PxSceneDesc::gravity)
@@ -239,6 +267,8 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     /** PhysXPhysicsManager ✅ */
     class_<PxScene>("PxScene")
             .function("setContactEventEnabled", &PxSetSceneContactEventsEnabled)
+            .function("setContactModificationCallback", &PxContactModificationCallback::setSceneCallback,
+                      allow_raw_pointers())
             .function("getGroupCollisionFlag", &getGroupCollisionFlagBinding)
             .function("setGroupCollisionFlag", &setGroupCollisionFlagBinding)
             .function("setPairIgnored", &physx::setPairIgnored)

@@ -837,7 +837,10 @@ void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
 	}
 
 	const PxU32 newContactState = getManagerContactState();
-	const bool recreateManager = (oldContactState != newContactState);
+	// Refiltering has already written pairFlags. Compare the new contact layout with the live manager.
+	const bool recreateManager = (oldContactState != newContactState) ||
+		((dirtyFlags & InteractionDirtyFlag::eFILTER_STATE) && mManager &&
+			((mManager->isChangeable() != 0) != ((pairFlags & PxPairFlag::eMODIFY_CONTACTS) != 0)));
 
 	// No use in updating manager properties if the manager is going to be re-created or does not exist yet
 	if((!recreateManager) && (mManager != 0))

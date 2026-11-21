@@ -386,6 +386,11 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               setShapeContactEventsEnabled(*shape, enabled);
                           }
                       }))
+            .function("setContactModificationEnabled", optional_override([](PxController &ctrl, bool enabled) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
+                              setShapeContactModificationEnabled(*shape, enabled);
+                          }
+                      }))
             .function("setDetectCollisions", optional_override([](PxController &ctrl, bool enabled) {
                           if (PxShape *shape = getControllerShape(ctrl)) {
                               shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, enabled);
