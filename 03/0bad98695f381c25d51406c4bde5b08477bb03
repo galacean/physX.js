@@ -1,0 +1,36 @@
+physx/source/physx/src/NpScene.cpp
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 2497-2498
+physx/source/simulationcontroller/include/ScScene.h
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 591-598
+physx/source/simulationcontroller/src/ScScene.cpp
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 4299-4306,4308-4312,5168-5170,5178-5180
+physx/source/simulationcontroller/src/ScConstraintSim.cpp
+  s_d2c65ec75a2f3e::t_483cde895b46cc 491-492,514
+physx/source/physx/src/NpConstraint.cpp
+  s_d2c65ec75a2f3e::t_483cde895b46cc 97
+physx/source/physx/src/NpPhysics.cpp
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 727-731
+physx/source/simulationcontroller/src/ScShapeInteraction.cpp
+  s_d2c65ec75a2f3e::t_ee47635cc49cd6 799
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 800
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 6,8,17-45,303-304
+physx/include/PxPhysics.h
+  s_d2c65ec75a2f3e::t_5e6cbe70cb5935 728
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "030bad98695f381c25d51406c4bde5b08477bb03",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
