@@ -1,0 +1,37 @@
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_d2c65ec75a2f3e::t_6ee81081e16c30 253,260
+  s_d2c65ec75a2f3e::t_e4a597ba7573f5 252,254-259
+  s_d2c65ec75a2f3e::t_418d08205967e3 251,261
+physx/source/physx/src/NpRigidBodyTemplate.h
+  s_d2c65ec75a2f3e::t_418d08205967e3 490
+physx/source/physx/src/buffering/ScbScene.cpp
+  s_d2c65ec75a2f3e::t_104b1e5a845f1d 632
+physx/source/simulationcontroller/src/ScConstraintSim.cpp
+  s_d2c65ec75a2f3e::t_e683b5078b311e 88-90
+  s_d2c65ec75a2f3e::t_104b1e5a845f1d 75,113-115
+physx/source/physx/src/NpRigidDynamic.cpp
+  s_d2c65ec75a2f3e::t_c75870b2be9255 513
+  s_d2c65ec75a2f3e::t_418d08205967e3 506-512,514
+physx/source/physx/src/buffering/ScbBody.h
+  s_d2c65ec75a2f3e::t_418d08205967e3 660
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  s_d2c65ec75a2f3e::t_418d08205967e3 47-48
+physx/source/physx/src/buffering/ScbConstraint.h
+  s_d2c65ec75a2f3e::t_104b1e5a845f1d 101,197-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "086d303a60f2e6f16778b76360e19ed42262f69d",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
