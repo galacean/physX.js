@@ -1,0 +1,31 @@
+physx/include/PxPhysics.h
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 727
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 33,230
+physx/source/simulationcontroller/src/ScShapeInteraction.cpp
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 598-600
+physx/source/simulationcontroller/src/ScScene.cpp
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 634
+physx/source/simulationcontroller/src/ScNPhaseCore.cpp
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 1582,1584
+physx/source/simulationcontroller/include/ScScene.h
+  s_d2c65ec75a2f3e::t_937227080a945b 601-602,977
+physx/source/physx/src/NpPhysics.cpp
+  s_d2c65ec75a2f3e::t_67e6a5ffe180da 722-726
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4b8706de743910dbd9e7cce93a84602e7b3c3514",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
