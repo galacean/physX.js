@@ -259,6 +259,10 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           }
                           return true;
                       }))
+            .function("setSleepEventId", optional_override([](PxRigidDynamic &body, PxU32 id) {
+                          body.userData = reinterpret_cast<void *>(static_cast<uintptr_t>(id));
+                          body.setActorFlag(PxActorFlag::eSEND_SLEEP_NOTIFIES, id != 0);
+                      }))
             .function("setSleepThreshold", optional_override([](PxRigidDynamic &body, PxReal threshold) {
                           if (PxIsFinite(threshold) && threshold >= 0.0f) {
                               body.setSleepThreshold(threshold);

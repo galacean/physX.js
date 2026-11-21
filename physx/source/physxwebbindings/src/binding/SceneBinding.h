@@ -25,9 +25,13 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
         }
     }
 
-    void onWake(PxActor **, PxU32) override {}
+    void onWake(PxActor **actors, PxU32 count) override {
+        notifyBodySleepChanged(actors, count, false);
+    }
 
-    void onSleep(PxActor **, PxU32) override {}
+    void onSleep(PxActor **actors, PxU32 count) override {
+        notifyBodySleepChanged(actors, count, true);
+    }
 
     void onContact(const PxContactPairHeader &header, const PxContactPair *pairs, PxU32 nbPairs) override {
         if (header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_0) ||
@@ -108,6 +112,13 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
 
 private:
+    void notifyBodySleepChanged(PxActor **actors, PxU32 count, bool sleeping) {
+        for (PxU32 i = 0; i < count; ++i) {
+            const auto id = static_cast<PxU32>(reinterpret_cast<uintptr_t>(actors[i]->userData));
+            if (id) call<void>("onBodySleepChanged", id, sleeping);
+        }
+    }
+
     std::vector<PxContactPairPoint> contactPoints;
     std::vector<float> contactValues;
 };
