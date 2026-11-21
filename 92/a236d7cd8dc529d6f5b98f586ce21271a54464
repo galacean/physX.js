@@ -1,0 +1,25 @@
+physx/include/characterkinematic/PxController.h
+  s_d2c65ec75a2f3e::t_4a132f79ac7f94 283-284,294-295
+physx/source/physxcharacterkinematic/src/CctCharacterController.cpp
+  s_d2c65ec75a2f3e::t_4a132f79ac7f94 2224-2226,2522-2523
+  s_d2c65ec75a2f3e::t_228fe50d88a1d5 2524
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  s_d2c65ec75a2f3e::t_4a132f79ac7f94 4,32,36,45,54-62,111-115,117-119,121-128,131-136,245-252
+  s_d2c65ec75a2f3e::t_c924807089441a 12,27-28,33,35,116,120,129-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "92a236d7cd8dc529d6f5b98f586ce21271a54464",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
