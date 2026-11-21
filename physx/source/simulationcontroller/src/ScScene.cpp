@@ -631,6 +631,7 @@ Sc::Scene::Scene(const PxSceneDesc& desc, PxU64 contextID) :
 	mCollideStep					(contextID, this, "ScScene.collideStep"),	
 	mTaskPool						(16384),
 	mContactReportsNeedPostSolverVelocity(false),
+	mContactEventsEnabled			(true),
 	mUseGpuRigidBodies				(false),
 	mSimulationStage				(SimulationStage::eCOMPLETE),
 	mTmpConstraintGroupRootBuffer	(NULL),

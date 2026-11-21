@@ -598,6 +598,8 @@ namespace Sc
 		PX_FORCE_INLINE bool						getStabilizationEnabled()				const	{ return mEnableStabilization; }
 
 		PX_FORCE_INLINE void						setPostSolverVelocityNeeded()					{ mContactReportsNeedPostSolverVelocity = true; }
+		PX_FORCE_INLINE bool						getContactEventsEnabled() const			{ return mContactEventsEnabled; }
+		PX_FORCE_INLINE void						setContactEventsEnabled(bool enabled)	{ mContactEventsEnabled = enabled; }
 
 									ObjectIDTracker&	getConstraintIDTracker() { return *mConstraintIDTracker; }
 
@@ -972,6 +974,7 @@ namespace Sc
 					PxCudaContextManager*													mCudaContextManager;
 
 					bool																	mContactReportsNeedPostSolverVelocity;
+					bool																	mContactEventsEnabled;
 					bool																	mUseGpuRigidBodies;
 
 					SimulationStage::Enum													mSimulationStage;

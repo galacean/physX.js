@@ -1579,10 +1579,9 @@ void Sc::NPhaseCore::processPersistentContactEvents(PxsContactManagerOutputItera
 {
 	PX_UNUSED(continuation);
 	PX_UNUSED(outputs);
-	PX_PROFILE_ZONE("Sc::NPhaseCore::processPersistentContactEvents", mOwnerScene.getContextId());
-	//TODO: put back this optimization -- now we have to do this stuff if at least one client has a callback registered.
-	// if (ownerScene.getSimulatonEventCallbackFast() != NULL)
+	if (mOwnerScene.getContactEventsEnabled())
 	{
+		PX_PROFILE_ZONE("Sc::NPhaseCore::processPersistentContactEvents", mOwnerScene.getContextId());
 		// Go through ShapeInteractions which requested persistent contact event reports. This is necessary since there are no low level events for persistent contact.
 		ShapeInteraction*const* persistentEventPairs = getCurrentPersistentContactEventPairs();
 		PxU32 size = getCurrentPersistentContactEventPairCount();

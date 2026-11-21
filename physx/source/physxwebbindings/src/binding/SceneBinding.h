@@ -14,8 +14,6 @@ using namespace emscripten;
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
 
-    void setContactEventEnabled(bool enabled) { contactEventEnabled = enabled; }
-
     void onConstraintBreak(PxConstraintInfo *constraints, PxU32 count) override {
         for (PxU32 i = 0; i < count; ++i) {
             const PxConstraintInfo &info = constraints[i];
@@ -32,7 +30,7 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onSleep(PxActor **, PxU32) override {}
 
     void onContact(const PxContactPairHeader &header, const PxContactPair *pairs, PxU32 nbPairs) override {
-        if (!contactEventEnabled || header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_0) ||
+        if (header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_0) ||
             header.flags.isSet(PxContactPairHeaderFlag::eREMOVED_ACTOR_1)) {
             return;
         }
@@ -110,16 +108,9 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
     void onAdvance(const PxRigidBody *const *, const PxTransform *, const PxU32) override {}
 
 private:
-    bool contactEventEnabled = true;
     std::vector<PxContactPairPoint> contactPoints;
     std::vector<float> contactValues;
 };
-
-void setContactEventEnabled(PxSimulationEventCallback *callback, bool enabled) {
-    if (callback) {
-        static_cast<PxSimulationEventCallbackWrapper *>(callback)->setContactEventEnabled(enabled);
-    }
-}
 
 inline void releaseDefaultCpuDispatcher(PxCpuDispatcher *dispatcher) {
     static_cast<PxDefaultCpuDispatcher *>(dispatcher)->release();
@@ -198,7 +189,6 @@ inline void setGroupBinding(PxActor *actor, double collisionGroup) {
 
 EMSCRIPTEN_BINDINGS(physx_scene) {
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers()); // ✅
-    function("setContactEventEnabled", &setContactEventEnabled, allow_raw_pointers());
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
     function("getGroup", &getGroupBinding, allow_raw_pointers());
@@ -237,6 +227,7 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
 
     /** PhysXPhysicsManager ✅ */
     class_<PxScene>("PxScene")
+            .function("setContactEventEnabled", &PxSetSceneContactEventsEnabled)
             .function("getGroupCollisionFlag", &getGroupCollisionFlagBinding)
             .function("setGroupCollisionFlag", &setGroupCollisionFlagBinding)
             .function("setPairIgnored", &physx::setPairIgnored)
