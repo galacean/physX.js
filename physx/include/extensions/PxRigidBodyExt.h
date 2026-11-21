@@ -108,6 +108,13 @@ public:
 	@see PxRigidBody::setMassLocalPose PxRigidBody::setMassSpaceInertiaTensor PxRigidBody::setMass
 	*/
 	static		bool			updateMassAndInertia(PxRigidBody& body, PxReal density, const PxVec3* massLocalPose = NULL, bool includeNonSimShapes = false);
+
+	/**
+	\brief Updates mass from the current solid simulation shapes and preserves manually configured mass properties.
+
+	\return The new mass, or zero with the body unchanged if the properties cannot be computed.
+	*/
+	static PxReal setDensity(PxRigidBody& body, PxReal density, bool automaticCenterOfMass, bool automaticInertiaTensor);
 	
 
 	/**

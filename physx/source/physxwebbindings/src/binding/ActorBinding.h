@@ -15,10 +15,10 @@ inline bool canApplyDynamicForce(const PxRigidBody &body) {
            !(body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION);
 }
 
-inline void addExplosionForce(PxRigidBody &body, PxReal strength, const PxVec3 &origin, double radius,
+inline bool addExplosionForce(PxRigidBody &body, PxReal strength, const PxVec3 &origin, double radius,
                               PxReal upwardOffset, PxForceMode::Enum mode) {
     if (!canApplyDynamicForce(body) || !origin.isFinite() || !PxIsFinite(strength) ||
-        !PxIsFinite(radius) || radius < 0 || !PxIsFinite(upwardOffset)) return;
+        !PxIsFinite(radius) || radius < 0 || !PxIsFinite(upwardOffset)) return false;
 
     const PxTransform pose = body.getGlobalPose();
     const PxVec3 center = pose.transform(body.getCMassLocalPose().p);
@@ -47,20 +47,20 @@ inline void addExplosionForce(PxRigidBody &body, PxReal strength, const PxVec3 &
     const double z = double(point.z) - origin.z;
     const double xzSquared = x * x + z * z;
     const double falloff = radius == 0 ? 1.0 : 1.0 - std::sqrt(xzSquared + y * y) / radius;
-    if (falloff <= 0) return;
+    if (falloff <= 0) return false;
 
     const double raisedY = y + upwardOffset;
     const double length = std::sqrt(xzSquared + raisedY * raisedY);
-    if (length == 0) return;
+    if (length == 0) return false;
 
     const double scale = strength * falloff / length;
     const PxVec3 force(PxReal(x * scale), PxReal(raisedY * scale), PxReal(z * scale));
     const PxVec3 torque = (point - center).cross(force);
-    if (force.isFinite() && torque.isFinite()) {
-        // Pass the same mode to both accumulators so acceleration and velocity changes bypass mass and inertia.
-        body.addForce(force, mode, true);
-        body.addTorque(torque, mode, true);
-    }
+    if (!force.isFinite() || !torque.isFinite()) return false;
+    // Pass the same mode to both accumulators so acceleration and velocity changes bypass mass and inertia.
+    body.addForce(force, mode, true);
+    body.addTorque(torque, mode, true);
+    return true;
 }
 
 EMSCRIPTEN_BINDINGS(physx_actor) {
@@ -248,6 +248,12 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                       })); // ✅
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidDynamic, base<PxRigidBody>>("PxRigidDynamic")
+            .function("setDensity", optional_override([](PxRigidDynamic &body, PxReal density,
+                                                          bool automaticCenterOfMass, bool automaticInertiaTensor) {
+                          const PxScene *scene = body.getScene();
+                          if (scene && !PxIsSceneSimulationIdle(*scene)) return 0.0f;
+                          return PxRigidBodyExt::setDensity(body, density, automaticCenterOfMass, automaticInertiaTensor);
+                      }))
             .function("setSimulationEnabled", optional_override([](PxRigidDynamic &body, bool enabled) {
                           const auto flag = PxActorFlag::eDISABLE_SIMULATION;
                           if (enabled == !(body.getActorFlags() & flag)) return false;
