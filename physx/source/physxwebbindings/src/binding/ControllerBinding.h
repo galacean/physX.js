@@ -44,7 +44,8 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
         : scene(owner), controllerData(data), layerMask(mask), excluded(excludedIds) {}
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
-                                   const PxRigidActor *, PxHitFlags &) override {
+                                   const PxRigidActor *actor, PxHitFlags &) override {
+        if (actor->getActorFlags() & PxActorFlag::eDISABLE_SIMULATION) return PxQueryHitType::eNONE;
         return accepts(shape) ? PxQueryHitType::eBLOCK : PxQueryHitType::eNONE;
     }
 

@@ -248,6 +248,17 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                       })); // ✅
     /** PhysXDynamicCollider ✅ */
     class_<PxRigidDynamic, base<PxRigidBody>>("PxRigidDynamic")
+            .function("setSimulationEnabled", optional_override([](PxRigidDynamic &body, bool enabled) {
+                          const auto flag = PxActorFlag::eDISABLE_SIMULATION;
+                          if (enabled == !(body.getActorFlags() & flag)) return false;
+                          body.setActorFlag(flag, !enabled);
+                          if (enabled && !(body.getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC)) {
+                              const PxScene *scene = body.getScene();
+                              body.setWakeCounter(scene ? scene->getWakeCounterResetValue()
+                                                        : PxSceneDesc(PxTolerancesScale()).wakeCounterResetValue);
+                          }
+                          return true;
+                      }))
             .function("setSleepThreshold", optional_override([](PxRigidDynamic &body, PxReal threshold) {
                           if (PxIsFinite(threshold) && threshold >= 0.0f) {
                               body.setSleepThreshold(threshold);

@@ -72,7 +72,7 @@ Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore*
 	mScene		(scene),
 	mCore		(core),
 	mInteraction(NULL),
-	mFlags		(0)
+	mFlags		(core.getFlags().isSet(PxConstraintFlag::eBROKEN) ? eBROKEN : 0)
 {
 	mBodies[0] = (r0 && (r0->getActorCoreType() != PxActorType::eRIGID_STATIC)) ? static_cast<BodySim*>(r0->getSim()) : 0;
 	mBodies[1] = (r1 && (r1->getActorCoreType() != PxActorType::eRIGID_STATIC)) ? static_cast<BodySim*>(r1->getSim()) : 0;
@@ -85,7 +85,9 @@ Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore*
 	}
 
 	writeBackPool.resize(PxMax(writeBackPool.size(), mLowLevelConstraint.index + 1));
-	writeBackPool[mLowLevelConstraint.index].initialize();
+	Dy::ConstraintWriteback& writeback = writeBackPool[mLowLevelConstraint.index];
+	writeback.initialize();
+	writeback.broken = isBroken();
 
 	if (!createLLConstraint())
 		return;
@@ -108,7 +110,9 @@ Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore*
 																	r0 ? *r0->getSim() : scene.getStaticAnchor(), 
 																	r1 ? *r1->getSim() : scene.getStaticAnchor());
 
-	if(!(core.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+	if(isBroken())
+		mInteraction->destroy();
+	else if(!(core.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
 		refilterConstraintPair(*mInteraction);
 
 	PX_ASSERT(!mInteraction->isRegistered());  // constraint interactions must not register in the scene, there is a list of Sc::ConstraintSim instead
