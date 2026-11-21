@@ -95,7 +95,7 @@ struct PxShapeFlag
 		raised the sdk will reject any attempt to raise the other.  To raise the eTRIGGER_SHAPE flag first 
 		ensure that eSIMULATION_SHAPE flag is already lowered.
 
-		\note Trigger shapes will no longer send notification events for interactions with other trigger shapes.
+		\note Overlaps between trigger shapes follow the scene's pair filtering rules.
 
 		\note Shapes marked as triggers are allowed to participate in scene queries, provided the eSCENE_QUERY_SHAPE flag is set. 
 
