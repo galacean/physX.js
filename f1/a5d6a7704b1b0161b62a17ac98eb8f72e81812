@@ -1,0 +1,56 @@
+physx/source/physxwebbindings/src/binding/ControllerBinding.h
+  s_d2c65ec75a2f3e::t_e6c4f1add40640 15-18
+  s_d2c65ec75a2f3e::t_7794df3cc9d32b 388
+  s_d2c65ec75a2f3e::t_6b9ec7c9c1b53d 213-214
+  s_d2c65ec75a2f3e::t_ddc54eb3a9869b 31-34,62,71-80,215-220
+  s_d2c65ec75a2f3e::t_04b0f08425fc72 81-83
+physx/source/physxcharacterkinematic/src/CctController.h
+  s_d2c65ec75a2f3e::t_e6c4f1add40640 60,108-109
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 66
+physx/source/physxcharacterkinematic/src/CctController.cpp
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 181,184
+  s_d2c65ec75a2f3e::t_e6c4f1add40640 40,152-154,166-168,172-180,182-183,185-204,208-213
+  s_d2c65ec75a2f3e::t_990f08e5848517 131-134,145-147
+  s_d2c65ec75a2f3e::t_3f9df6059d8fd3 135-144
+  s_d2c65ec75a2f3e::t_7794df3cc9d32b 68,169-171,205-207
+  s_d2c65ec75a2f3e::t_1271a8325fce3f 214
+physx/source/physxcharacterkinematic/src/CctBoxController.cpp
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 87
+  s_d2c65ec75a2f3e::t_ddc54eb3a9869b 30,89-93,179-180
+physx/source/physxcharacterkinematic/src/CctCapsuleController.cpp
+  s_d2c65ec75a2f3e::t_ddc54eb3a9869b 85
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 82
+  s_d2c65ec75a2f3e::t_c350ef9deb9da3 84
+physx/source/physxcharacterkinematic/src/CctCapsuleController.h
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 56
+  s_d2c65ec75a2f3e::t_e6c4f1add40640 80
+physx/source/physxcharacterkinematic/src/CctBoxController.h
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 56
+  s_d2c65ec75a2f3e::t_e6c4f1add40640 80
+physx/source/physxcharacterkinematic/src/CctCharacterControllerManager.cpp
+  s_d2c65ec75a2f3e::t_cb198af45c9964 413,418
+  s_d2c65ec75a2f3e::t_a4b029e365ab23 444-446,448-450,452-453,455-457,461
+  s_d2c65ec75a2f3e::t_f0d363e2f313ed 435-437
+  s_d2c65ec75a2f3e::t_e46abb9be48a49 441-442,485-491
+  s_d2c65ec75a2f3e::t_67bc18353a4d97 420
+  s_d2c65ec75a2f3e::t_6b019086499408 415,417,419
+  s_d2c65ec75a2f3e::t_c350ef9deb9da3 416
+  s_d2c65ec75a2f3e::t_ddc54eb3a9869b 34-35,401,403,405-406,409-410,423,425-432,434,466-467,469-471,474-475,477-478,480-482
+  s_d2c65ec75a2f3e::t_0cf5ed4bd103d8 492
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f1a5d6a7704b1b0161b62a17ac98eb8f72e81812",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
