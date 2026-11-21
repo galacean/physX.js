@@ -69,8 +69,22 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
                           out.call<void>("set", direction.x, direction.y, direction.z);
                           return depth;
                       }))
-            .function("setContactOffset", &PxShape::setContactOffset) // ✅
-            // .function("getContactOffset", &PxShape::getContactOffset) 
+            .function("setContactOffsets", optional_override([](PxShape &shape, PxReal contactOffset, PxReal restOffset) {
+                          if (!PxIsFinite(contactOffset) || !PxIsFinite(restOffset) || contactOffset <= 0.0f ||
+                              restOffset >= contactOffset) {
+                              return false;
+                          }
+                          const PxReal oldContactOffset = shape.getContactOffset();
+                          // Each setter checks the other offset, including while updating the pair.
+                          if (restOffset >= oldContactOffset) {
+                              shape.setContactOffset(contactOffset);
+                              shape.setRestOffset(restOffset);
+                          } else {
+                              if (restOffset != shape.getRestOffset()) shape.setRestOffset(restOffset);
+                              if (contactOffset != oldContactOffset) shape.setContactOffset(contactOffset);
+                          }
+                          return true;
+                      }))
             // .function("getFlags", &PxShape::getFlags) 
             // .function("setFlag", &PxShape::setFlag)
             .function("setFlags", optional_override([](PxShape &shape, PxShapeFlags flags) {

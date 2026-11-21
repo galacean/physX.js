@@ -99,8 +99,9 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
             .function("getAngle", &PxRevoluteJoint::getAngle)        // ✅
             .function("getVelocity", &PxRevoluteJoint::getVelocity)  // ✅
             .function("setHardLimit", optional_override([](PxRevoluteJoint &joint, PxReal lowerLimit, PxReal upperLimit,
-                                                           PxReal contactDist) {
-                          const PxJointAngularLimitPair limit(lowerLimit, upperLimit, contactDist);
+                                                           PxReal contactDist, PxReal restitution) {
+                          PxJointAngularLimitPair limit(lowerLimit, upperLimit, contactDist);
+                          limit.restitution = restitution;
                           if (limit.isValid() && limit.lower > -PxTwoPi && limit.upper < PxTwoPi) {
                               joint.setLimit(limit);
                           }
