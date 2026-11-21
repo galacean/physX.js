@@ -1,0 +1,29 @@
+physx/include/PxPhysics.h
+  s_d2c65ec75a2f3e::t_753a48b6ef3c66 726
+physx/source/physx/src/NpPhysics.cpp
+  s_d2c65ec75a2f3e::t_dad2fd500fb6cc 722-726
+physx/source/physxwebbindings/src/SimulationFilterShader.cpp
+  s_d2c65ec75a2f3e::t_d3a1ce43558c59 89,143-146,239-242,252
+physx/source/physxwebbindings/src/SimulationFilterShader.h
+  s_d2c65ec75a2f3e::t_bec26d54284c78 59
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_d2c65ec75a2f3e::t_32c8982e30fc73 170-172,174-176
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  s_d2c65ec75a2f3e::t_1b35a14ba05810 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6a216104ca9b5e8194b33bb943f0fa6a59dfae3b",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
