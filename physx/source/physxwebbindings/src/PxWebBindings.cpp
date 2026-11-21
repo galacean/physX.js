@@ -35,7 +35,12 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
+    function("PxCreatePhysics", optional_override([](PxU32 version, PxFoundation &foundation,
+                                                    const PxTolerancesScale &scale, bool trackAllocations, PxPvd *pvd) {
+        PxPhysics *physics = PxCreateBasePhysics(version, foundation, scale, trackAllocations, pvd);
+        if (physics && physics->getNbScenes() == 0) PxRegisterHeightFields(*physics);
+        return physics;
+    }), allow_raw_pointers());
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();

@@ -722,7 +722,7 @@ Before using this function the user must call #PxCreatePhysics().
 
 PX_C_EXPORT PX_PHYSX_CORE_API physx::PxPhysics& PX_CALL_CONV PxGetPhysics();
 
-PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxMarkFilterGroupPairDirty(physx::PxU32 group1, physx::PxU32 group2);
+PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxMarkSceneFilterPairDirty(physx::PxScene& scene, physx::PxU32 first, physx::PxU32 second, bool shapeIds);
 
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetSceneOwnedCpuDispatcher(
 	physx::PxScene& scene,

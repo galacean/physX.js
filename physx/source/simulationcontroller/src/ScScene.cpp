@@ -1328,7 +1328,7 @@ void Sc::Scene::notifyInteractionDeactivated(Interaction* interaction)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Sc::Scene::markFilterGroupPairDirty(PxU32 group1, PxU32 group2)
+void Sc::Scene::markFilterPairDirty(PxU32 first, PxU32 second, bool shapeIds)
 {
 	static const InteractionType::Enum types[3] = {
 		InteractionType::eOVERLAP,
@@ -1344,9 +1344,11 @@ void Sc::Scene::markFilterGroupPairDirty(PxU32 group1, PxU32 group2)
 			ElementSimInteraction* pair = static_cast<ElementSimInteraction*>(interactions[i]);
 			if(!pair->readInteractionFlag(InteractionFlag::eFILTERABLE))
 				continue;
-			const PxU32 g0 = static_cast<const ShapeSim&>(pair->getElement0()).getCore().getSimulationFilterData().word0;
-			const PxU32 g1 = static_cast<const ShapeSim&>(pair->getElement1()).getCore().getSimulationFilterData().word0;
-			if((g0 == group1 && g1 == group2) || (g0 == group2 && g1 == group1))
+			const PxFilterData a = static_cast<const ShapeSim&>(pair->getElement0()).getCore().getSimulationFilterData();
+			const PxFilterData b = static_cast<const ShapeSim&>(pair->getElement1()).getCore().getSimulationFilterData();
+			const PxU32 keyA = shapeIds ? a.word1 : a.word0;
+			const PxU32 keyB = shapeIds ? b.word1 : b.word0;
+			if((keyA == first && keyB == second) || (keyA == second && keyB == first))
 				pair->setDirty(InteractionDirtyFlag::eFILTER_STATE);
 		}
 	}

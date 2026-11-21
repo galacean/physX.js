@@ -112,7 +112,6 @@ public:
 
 	static      NpPhysics&		getInstance() { return *mInstance; }
 	static      NpPhysics*		getInstancePtr() { return mInstance; }
-				void			markFilterGroupPairDirty(PxU32 group1, PxU32 group2);
 
 	virtual     void			release();
 

@@ -16,11 +16,11 @@ inline bool canApplyDynamicForce(const PxRigidBody &body) {
 }
 
 EMSCRIPTEN_BINDINGS(physx_actor) {
-    // enum_<PxForceMode::Enum>("PxForceMode")
-    //         .value("eFORCE", PxForceMode::Enum::eFORCE)
-    //         .value("eIMPULSE", PxForceMode::Enum::eIMPULSE)
-    //         .value("eVELOCITY_CHANGE", PxForceMode::Enum::eVELOCITY_CHANGE)
-    //         .value("eACCELERATION", PxForceMode::Enum::eACCELERATION);
+    enum_<PxForceMode::Enum>("PxForceMode")
+            .value("eFORCE", PxForceMode::eFORCE)
+            .value("eIMPULSE", PxForceMode::eIMPULSE)
+            .value("eVELOCITY_CHANGE", PxForceMode::eVELOCITY_CHANGE)
+            .value("eACCELERATION", PxForceMode::eACCELERATION);
 
     enum_<PxActorFlag::Enum>("PxActorFlag").value("eDISABLE_GRAVITY", PxActorFlag::Enum::eDISABLE_GRAVITY); // ✅
 
@@ -79,6 +79,7 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           body.setLinearVelocity(vel, autowake);
                       }))                                                    // ✅
             .function("getLinearVelocity", &PxRigidBody::getLinearVelocity)  // ✅
+            .function("setMaxLinearVelocity", &PxRigidBody::setMaxLinearVelocity)
             .function("setMaxAngularVelocity", optional_override([](PxRigidBody &body, PxReal maxAngularVelocity) {
                           if (PxIsFinite(maxAngularVelocity) && maxAngularVelocity >= 0.0f) {
                               body.setMaxAngularVelocity(maxAngularVelocity);
@@ -102,8 +103,18 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           if (!pos.isFinite()) {
                               return;
                           }
-                          body.setCMassLocalPose(PxTransform(pos, PxQuat(PxIDENTITY::PxIdentity)));
+                          PxTransform pose = body.getCMassLocalPose();
+                          pose.p = pos;
+                          body.setCMassLocalPose(pose);
                       }))                                                                    // ✅
+            .function("setInertiaTensorRotation", optional_override([](PxRigidBody &body, const PxQuat &rotation) {
+                          if (!rotation.isUnit()) {
+                              return;
+                          }
+                          PxTransform pose = body.getCMassLocalPose();
+                          pose.q = rotation;
+                          body.setCMassLocalPose(pose);
+                      }))
             .function("getCMassLocalPose", &PxRigidBody::getCMassLocalPose)                  // ✅
             .function("setMassSpaceInertiaTensor", optional_override([](PxRigidBody &body, const PxVec3 &inertia) {
                           if (inertia.isFinite() && inertia.x >= 0.0f && inertia.y >= 0.0f && inertia.z >= 0.0f) {
@@ -111,14 +122,14 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           }
                       }))  // ✅
             .function("getMassSpaceInertiaTensor", &PxRigidBody::getMassSpaceInertiaTensor)  // ✅
-            .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque) {
+            .function("addTorque", optional_override([](PxRigidBody &body, const PxVec3 &torque, PxForceMode::Enum mode) {
                           if (torque.isFinite() && canApplyDynamicForce(body)) {
-                              body.addTorque(torque, PxForceMode::eFORCE, true);
+                              body.addTorque(torque, mode, true);
                           }
                       }))  // ✅
-            .function("addForce", optional_override([](PxRigidBody &body, const PxVec3 &force) {
+            .function("addForce", optional_override([](PxRigidBody &body, const PxVec3 &force, PxForceMode::Enum mode) {
                           if (force.isFinite() && canApplyDynamicForce(body)) {
-                              body.addForce(force, PxForceMode::eFORCE, true);
+                              body.addForce(force, mode, true);
                           }
                       }))  // ✅
             .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {

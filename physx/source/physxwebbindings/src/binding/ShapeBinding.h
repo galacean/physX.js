@@ -11,6 +11,24 @@
 using namespace physx;
 using namespace emscripten;
 
+static PxTransform shapeWorldPose(const PxShape &shape) {
+    const PxRigidActor *actor = shape.getActor();
+    const PxTransform local = shape.getLocalPose();
+    if (!actor) return local;
+    const auto *body = actor->is<PxRigidDynamic>();
+    PxTransform target;
+    if (body && (body->getRigidBodyFlags() & PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES) &&
+        body->getKinematicTarget(target)) {
+        return target * local;
+    }
+    return actor->getGlobalPose() * local;
+}
+
+static bool isVolumeGeometry(PxGeometryType::Enum type) {
+    return type == PxGeometryType::eBOX || type == PxGeometryType::eSPHERE ||
+           type == PxGeometryType::eCAPSULE || type == PxGeometryType::eCONVEXMESH;
+}
+
 EMSCRIPTEN_BINDINGS(physx_shape) {
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
 
@@ -36,14 +54,26 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
     // This is overrided to use std::vector<PxMaterial*>
     class_<PxShape>("PxShape") // ✅
             .function("release", &PxShape::release) // ✅
-            .function("getGlobalPose", optional_override([](PxShape &shape) {
-                          PxRigidActor *actor = shape.getActor();
-                          if (actor) {
-                              return actor->getGlobalPose() * shape.getLocalPose();
-                          } else {
-                              return shape.getLocalPose();
+            .function("getGlobalPose", &shapeWorldPose)
+            .function("getWorldBounds", optional_override([](const PxShape &shape, const val &min, const val &max) {
+                          const PxBounds3 bounds = PxGeometryQuery::getWorldBounds(shape.getGeometry().any(), shapeWorldPose(shape), 1.0f);
+                          min.call<void>("set", bounds.minimum.x, bounds.minimum.y, bounds.minimum.z);
+                          max.call<void>("set", bounds.maximum.x, bounds.maximum.y, bounds.maximum.z);
+                      }))
+            .function("computePenetration", optional_override([](const PxShape &shape, const PxShape &other, const val &out) {
+                          const PxGeometryHolder first = shape.getGeometry();
+                          const PxGeometryHolder second = other.getGeometry();
+                          PxVec3 direction;
+                          PxReal depth;
+                          if ((!isVolumeGeometry(first.getType()) && !isVolumeGeometry(second.getType())) ||
+                              !PxGeometryQuery::computePenetration(direction, depth, first.any(), shapeWorldPose(shape),
+                                                                    second.any(), shapeWorldPose(other)) ||
+                              depth <= 0.0f) {
+                              return 0.0f;
                           }
-                      })) // ✅
+                          out.call<void>("set", direction.x, direction.y, direction.z);
+                          return depth;
+                      }))
             .function("setContactOffset", &PxShape::setContactOffset) // ✅
             // .function("getContactOffset", &PxShape::getContactOffset) 
             // .function("getFlags", &PxShape::getFlags) 
@@ -72,6 +102,7 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
                           PxU32 parsedGroup = 0;
                           return tryParseCollisionGroup(group, parsedGroup) && physx::setShapeGroup(shape, parsedGroup);
                       })) // ✅
+            .function("setLayerOverrides", &physx::setShapeLayerOverrides)
             .function("setMaterial", optional_override([](PxShape &shape, PxMaterial &material) {
                           PxMaterial *materialPtr = &material;
                           return shape.setMaterials(&materialPtr, 1);

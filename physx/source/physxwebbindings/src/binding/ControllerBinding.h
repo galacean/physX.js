@@ -4,6 +4,7 @@
 #include <cmath>
 #include <emscripten.h>
 #include <emscripten/bind.h>
+#include <vector>
 
 #include "../BindingHelper.h"
 #include "../SimulationFilterShader.h"
@@ -12,19 +13,20 @@
 using namespace physx;
 using namespace emscripten;
 
-inline PxU32 getControllerGroup(const PxController &ctrl) {
+inline PxFilterData getControllerFilterData(const PxController &ctrl) {
     PxRigidDynamic *actor = ctrl.getActor();
     PxShape *shape = nullptr;
     if (actor && actor->getShapes(&shape, 1) == 1 && shape) {
-        return shape->getSimulationFilterData().word0;
+        return shape->getSimulationFilterData();
     }
-    return 0;
+    return PxFilterData();
 }
 
 struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback {
-    PxU32 controllerGroup;
+    const PxScene &scene;
+    PxFilterData controllerData;
 
-    explicit ControllerLayerFilter(PxU32 group) : controllerGroup(group) {}
+    ControllerLayerFilter(const PxScene &owner, PxFilterData data) : scene(owner), controllerData(data) {}
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
                                    const PxRigidActor *, PxHitFlags &) override {
@@ -33,7 +35,7 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
         if (!shape || !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE)) {
             return PxQueryHitType::eNONE;
         }
-        return physx::getGroupCollisionFlag(controllerGroup, shape->getSimulationFilterData().word0)
+        return physx::shouldCollide(scene, controllerData, shape->getSimulationFilterData())
                    ? PxQueryHitType::eBLOCK
                    : PxQueryHitType::eNONE;
     }
@@ -43,11 +45,84 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
     }
 
     bool filter(const PxController &a, const PxController &b) override {
-        return physx::getGroupCollisionFlag(getControllerGroup(a), getControllerGroup(b));
+        return physx::shouldCollide(scene, getControllerFilterData(a), getControllerFilterData(b));
     }
 };
 
+class ControllerHitReport final : public PxUserControllerHitReport {
+public:
+    bool collecting = false;
+    std::vector<double> values{1};
+
+    void onShapeHit(const PxControllerShapeHit &hit) override {
+        if (collecting) append(hit, hit.shape);
+    }
+
+    void onControllerHit(const PxControllersHit &hit) override {
+        if (!collecting) return;
+        PxShape *shape = nullptr;
+        if (hit.other->getActor()->getShapes(&shape, 1) == 1) {
+            append(hit, shape);
+        }
+    }
+
+    void onObstacleHit(const PxControllerObstacleHit &) override {}
+
+private:
+    void append(const PxControllerHit &hit, const PxShape *shape) {
+        const auto start = static_cast<size_t>(values[0]);
+        const auto end = start + 11;
+        if (values.size() < end) values.resize(end);
+        values[0] = end;
+        double *out = values.data() + start;
+        *out++ = getUUID(shape);
+        *out++ = hit.worldPos.x;
+        *out++ = hit.worldPos.y;
+        *out++ = hit.worldPos.z;
+        *out++ = hit.worldNormal.x;
+        *out++ = hit.worldNormal.y;
+        *out++ = hit.worldNormal.z;
+        *out++ = hit.dir.x;
+        *out++ = hit.dir.y;
+        *out++ = hit.dir.z;
+        *out = hit.length;
+    }
+};
+
+inline ControllerHitReport &getControllerHitReport() {
+    static ControllerHitReport report;
+    return report;
+}
+
+class ControllerPlatformBehavior final : public PxControllerBehaviorCallback {
+public:
+    PxControllerBehaviorFlags getBehaviorFlags(const PxShape &, const PxActor &) override {
+        return PxControllerBehaviorFlag::eCCT_CAN_RIDE_ON_OBJECT;
+    }
+
+    PxControllerBehaviorFlags getBehaviorFlags(const PxController &) override {
+        return {};
+    }
+
+    PxControllerBehaviorFlags getBehaviorFlags(const PxObstacle &) override {
+        return PxControllerBehaviorFlag::eCCT_CAN_RIDE_ON_OBJECT;
+    }
+};
+
+inline val getControllerMoveHits() {
+    const auto &values = getControllerHitReport().values;
+    if (values[0] == 1) return val::null();
+    static val view = val::null();
+    // A WebAssembly memory grow detaches the previous view.
+    if (view.isNull() || view["length"].as<size_t>() != values.size()) {
+        view = val(typed_memory_view(values.size(), values.data()));
+    }
+    return view;
+}
+
 EMSCRIPTEN_BINDINGS(physx_controller) {
+    function("getControllerMoveHits", &getControllerMoveHits);
+
     enum_<PxCapsuleClimbingMode::Enum>("PxCapsuleClimbingMode")
             .value("eCONSTRAINED", PxCapsuleClimbingMode::Enum::eCONSTRAINED)
             .value("eLAST", PxCapsuleClimbingMode::Enum::eLAST)
@@ -69,14 +144,16 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
     /** PhysXCharacterControllerManager ✅ */
     class_<PxControllerManager>("PxControllerManager")
             // .function("purgeControllers", &PxControllerManager::purgeControllers)                              // ✅
-            .function("createController", &PxControllerManager::createController, allow_raw_pointers())           // ✅
+            .function("createController", optional_override([](PxControllerManager &manager, PxControllerDesc &desc) {
+                          static ControllerPlatformBehavior platformBehavior;
+                          desc.reportCallback = &getControllerHitReport();
+                          desc.behaviorCallback = &platformBehavior;
+                          return manager.createController(desc);
+                      }), allow_raw_pointers())  // ✅
+            .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)
             .function("release", &PxControllerManager::release);  // ✅
             // .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers())  // ✅
             // .function("setTessellation", &PxControllerManager::setTessellation)                                // ✅
-            // .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)              // ✅
-            // .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps)                              // ✅
-            // .function("setPreventVerticalSlidingAgainstCeiling",
-                      // &PxControllerManager::setPreventVerticalSlidingAgainstCeiling)  // ✅
             // .function("shiftOrigin", &PxControllerManager::shiftOrigin);              // ✅
     /** PhysXCharacterControllerDesc ✅ */
     class_<PxControllerDesc>("PxControllerDesc")
@@ -125,7 +202,9 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
             //               return flags.isSet(PxControllerCollisionFlag::Enum(flag));
             //           }))  // ✅
             .function("move", optional_override([](PxController &controller, const PxVec3 &disp, PxF32 minDist,
-                                                   PxF32 elapsedTime) -> uint32_t {
+                                                   PxF32 elapsedTime, bool collectHits) -> uint32_t {
+                          auto &report = getControllerHitReport();
+                          report.values[0] = 1;
                           if (!disp.isFinite() || !PxIsFinite(minDist) || minDist < 0.0f ||
                               !PxIsFinite(elapsedTime) || elapsedTime < 0.0f) {
                               return 0;
@@ -137,9 +216,12 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               controller.setUserData(
                                       reinterpret_cast<void *>(static_cast<uintptr_t>(filterRevision)));
                           }
-                          ControllerLayerFilter filter(getControllerGroup(controller));
+                          ControllerLayerFilter filter(*controller.getScene(), getControllerFilterData(controller));
                           PxControllerFilters filters(nullptr, &filter, &filter);
-                          return controller.move(disp, minDist, elapsedTime, filters);
+                          report.collecting = collectHits;
+                          const uint32_t flags = controller.move(disp, minDist, elapsedTime, filters);
+                          report.collecting = false;
+                          return flags;
                       }))  // ✅
             .function("setPosition", optional_override([](PxController &controller, const PxExtendedVec3 &pos) {
                           if (!std::isfinite(pos.x) || !std::isfinite(pos.y) || !std::isfinite(pos.z)) {
@@ -148,8 +230,13 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           return controller.setPosition(pos);
                       }))                                         // ✅
             .function("getPosition", &PxController::getPosition)  // ✅
-            // .function("setFootPosition", &PxController::setFootPosition)  // ✅
-            // .function("getFootPosition", &PxController::getFootPosition)  // ✅
+            .function("setFootPosition", optional_override([](PxController &controller, const PxExtendedVec3 &pos) {
+                          return toVec3(pos).isFinite() && controller.setFootPosition(pos);
+                      }))
+            .function("getFootPosition", optional_override([](const PxController &controller, const val &out) {
+                          const PxExtendedVec3 position = controller.getFootPosition();
+                          out.call<void>("set", position.x, position.y, position.z);
+                      }))
             .function("setStepOffset", optional_override([](PxController &controller, PxF32 offset) {
                           if (PxIsFinite(offset) && offset >= 0.0f) {
                               controller.setStepOffset(offset);
@@ -182,7 +269,12 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           }
                       }))  // ✅
             // .function("invalidateCache", &PxController::invalidateCache)    // ✅
-            // .function("resize", &PxController::resize)                      // ✅
+            .function("resize", optional_override([](PxController &controller, PxF32 height) {
+                          // PhysX expects a capsule's cylindrical height or a box's half height.
+                          if (PxIsFinite(height) && height > 0.0f) {
+                              controller.resize(height);
+                          }
+                      }))
             /** PxCapsuleController ✅ */
             .function("setRadius", optional_override([](PxController &ctrl, PxF32 radius) {
                           if (ctrl.getType() == PxControllerShapeType::eCAPSULE && PxIsFinite(radius) &&
@@ -196,11 +288,14 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               static_cast<PxCapsuleController *>(&ctrl)->setHeight(height);
                           }
                       }))  // ✅
-            // .function("setClimbingMode", optional_override([](PxController &ctrl, int mode) {
-            //               return static_cast<PxCapsuleController *>(&ctrl)->setClimbingMode(
-            //                       PxCapsuleClimbingMode::Enum(mode));
-            //           }))  // ✅
-            //                /** PxBoxController ✅ */
+            .function("setClimbingMode", optional_override([](PxController &ctrl, int mode) {
+                          return ctrl.getType() == PxControllerShapeType::eCAPSULE &&
+                                 (mode == PxCapsuleClimbingMode::eEASY ||
+                                  mode == PxCapsuleClimbingMode::eCONSTRAINED) &&
+                                 static_cast<PxCapsuleController &>(ctrl).setClimbingMode(
+                                         PxCapsuleClimbingMode::Enum(mode));
+                      }))
+            /** PxBoxController ✅ */
             .function("setHalfHeight", optional_override([](PxController &ctrl, PxF32 halfHeight) {
                           if (ctrl.getType() == PxControllerShapeType::eBOX && PxIsFinite(halfHeight) &&
                               halfHeight > 0.0f) {
@@ -226,6 +321,12 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               setUUID(*shape, uuid);
                           }
                       }))  // ✅
+            .function("setLayerOverrides", optional_override([](PxController &ctrl, PxU32 include, PxU32 exclude) {
+                          PxShape *shape = nullptr;
+                          if (ctrl.getActor()->getShapes(&shape, 1) == 1) {
+                              physx::setShapeLayerOverrides(*shape, include, exclude);
+                          }
+                      }))
             .function("setSceneQueryEnabled", optional_override([](PxController &ctrl, bool enabled) {
                           PxRigidDynamic *actor = ctrl.getActor();
                           PxShape *shape = nullptr;

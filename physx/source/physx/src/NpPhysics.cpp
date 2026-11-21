@@ -709,25 +709,14 @@ PxFoundation& NpPhysics::getFoundation()
 	return Ps::Foundation::getInstance();
 }
 
-void NpPhysics::markFilterGroupPairDirty(PxU32 group1, PxU32 group2)
-{
-	Ps::Mutex::ScopedLock lock(mSceneAndMaterialMutex);
-	const PxU32 nbScenes = mSceneArray.size();
-	for(PxU32 i = 0; i < nbScenes; ++i)
-		mSceneArray[i]->getScene().getScScene().markFilterGroupPairDirty(group1, group2);
-}
-
 PxPhysics& PxGetPhysics()
 {
 	return NpPhysics::getInstance();
 }
 
-void PxMarkFilterGroupPairDirty(PxU32 group1, PxU32 group2)
+void PxMarkSceneFilterPairDirty(PxScene& scene, PxU32 first, PxU32 second, bool shapeIds)
 {
-	NpPhysics* instance = NpPhysics::getInstancePtr();
-	if(!instance)
-		return;
-	instance->markFilterGroupPairDirty(group1, group2);
+	static_cast<NpScene&>(scene).getScene().getScScene().markFilterPairDirty(first, second, shapeIds);
 }
 
 void PxSetSceneOwnedCpuDispatcher(PxScene& scene, PxCpuDispatcher* dispatcher, void (*releaser)(PxCpuDispatcher*))

@@ -6,8 +6,6 @@
 
 #include "PxPhysicsAPI.h"
 
-static_assert(sizeof(void*) >= sizeof(uint32_t), "Pointer must hold a 32-bit UUID");
-
 inline bool tryParseIntRange(double value, physx::PxU32 minVal, physx::PxU32 maxVal, physx::PxU32& out) {
     if (!std::isfinite(value) || std::floor(value) != value || value < static_cast<double>(minVal) ||
         value > static_cast<double>(maxVal)) {
@@ -22,11 +20,13 @@ inline bool tryParseCollisionGroup(double value, physx::PxU32& out) {
 }
 
 inline void setUUID(physx::PxShape& shape, uint32_t uuid) {
-    shape.userData = reinterpret_cast<void*>(static_cast<uintptr_t>(uuid));
+    auto data = shape.getSimulationFilterData();
+    data.word1 = uuid;
+    shape.setSimulationFilterData(data);
 }
 
 inline uint32_t getUUID(const physx::PxShape* shape) {
-    return shape ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(shape->userData)) : 0u;
+    return shape ? shape->getSimulationFilterData().word1 : 0u;
 }
 
 inline uint32_t getUUID(const physx::PxRigidActor* actor) {

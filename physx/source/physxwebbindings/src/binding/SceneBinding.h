@@ -16,7 +16,16 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
 
     void setContactEventEnabled(bool enabled) { contactEventEnabled = enabled; }
 
-    void onConstraintBreak(PxConstraintInfo *, PxU32) override {}
+    void onConstraintBreak(PxConstraintInfo *constraints, PxU32 count) override {
+        for (PxU32 i = 0; i < count; ++i) {
+            const PxConstraintInfo &info = constraints[i];
+            if (info.type == PxConstraintExtIDs::eJOINT) {
+                const auto *joint = static_cast<const PxJoint *>(info.externalReference);
+                const auto id = static_cast<PxU32>(reinterpret_cast<uintptr_t>(joint->userData));
+                if (id) call<void>("onJointBreak", id);
+            }
+        }
+    }
 
     void onWake(PxActor **, PxU32) override {}
 
@@ -28,7 +37,15 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             return;
         }
 
+        // One extra-data item set covers the shape pairs starting at its reported index.
+        PxContactPairExtraDataIterator extra(header.extraDataStream, header.extraDataStreamSize);
+        bool hasNext = extra.nextItemSet();
+        const PxContactPairVelocity *preSolver = nullptr;
         for (PxU32 i = 0; i < nbPairs; i++) {
+            while (hasNext && extra.contactPairIndex == i) {
+                preSolver = extra.preSolverVelocity;
+                hasNext = extra.nextItemSet();
+            }
             const PxContactPair &cp = pairs[i];
             if (cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_0) ||
                 cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1) || !cp.shapes[0] || !cp.shapes[1]) {
@@ -36,7 +53,10 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             }
             contactPoints.resize(cp.contactCount);
             const PxU32 count = cp.extractContacts(contactPoints.data(), cp.contactCount);
-            contactValues.resize(count * 10);
+            const PxU32 velocityOffset = count * 10;
+            // PhysX 4.1 clears the swept solver's velocity snapshot before it builds the report.
+            const bool hasVelocity = preSolver && !cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_CCD);
+            contactValues.resize(velocityOffset + (hasVelocity ? 3 : 0));
             for (PxU32 j = 0; j < count; ++j) {
                 const PxContactPairPoint &point = contactPoints[j];
                 float *out = contactValues.data() + j * 10;
@@ -44,6 +64,12 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
                 out[3] = point.normal.x; out[4] = point.normal.y; out[5] = point.normal.z;
                 out[6] = point.impulse.x; out[7] = point.impulse.y; out[8] = point.impulse.z;
                 out[9] = point.separation;
+            }
+            if (hasVelocity) {
+                const PxVec3 velocity = preSolver->linearVelocity[1] - preSolver->linearVelocity[0];
+                contactValues[velocityOffset] = velocity.x;
+                contactValues[velocityOffset + 1] = velocity.y;
+                contactValues[velocityOffset + 2] = velocity.z;
             }
             const PxU32 shape0ID = getUUID(cp.shapes[0]);
             const PxU32 shape1ID = getUUID(cp.shapes[1]);
@@ -54,13 +80,13 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             const bool isPureCCDRetouch =
                 !isFound && !isPersists && !isLost && cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_CCD);
             if (isFound || isPureCCDRetouch) {
-                call<void>("onContactBegin", shape0ID, shape1ID, contacts);
+                call<void>("onContactBegin", shape0ID, shape1ID, count, contacts);
             }
             if (isPersists) {
-                call<void>("onContactPersist", shape0ID, shape1ID, contacts);
+                call<void>("onContactPersist", shape0ID, shape1ID, count, contacts);
             }
             if (isLost) {
-                call<void>("onContactEnd", shape0ID, shape1ID, contacts);
+                call<void>("onContactEnd", shape0ID, shape1ID, count, contacts);
             }
         }
     }
@@ -137,26 +163,24 @@ PxSceneDesc *getDefaultSceneDesc(PxTolerancesScale &scale, int numThreads, PxSim
     sceneDesc->userData = reinterpret_cast<void *>(static_cast<uintptr_t>(numThreads > 0 ? numThreads : 0));
     sceneDesc->filterShader = physx::simulationFilterShader;
     sceneDesc->simulationEventCallback = callback;
-    sceneDesc->kineKineFilteringMode = PxPairFilteringMode::eKEEP;
-    sceneDesc->staticKineFilteringMode = PxPairFilteringMode::eKEEP;
     sceneDesc->flags |= PxSceneFlag::eENABLE_CCD;
     return sceneDesc;
 }
 
-inline bool getGroupCollisionFlagBinding(double group1, double group2) {
+inline bool getGroupCollisionFlagBinding(const PxScene &scene, double group1, double group2) {
     PxU32 g1 = 0;
     PxU32 g2 = 0;
     if (!tryParseCollisionGroup(group1, g1) || !tryParseCollisionGroup(group2, g2)) {
         return false;
     }
-    return physx::getGroupCollisionFlag(g1, g2);
+    return physx::getGroupCollisionFlag(scene, g1, g2);
 }
 
-inline void setGroupCollisionFlagBinding(double group1, double group2, bool enable) {
+inline void setGroupCollisionFlagBinding(PxScene &scene, double group1, double group2, bool enable) {
     PxU32 g1 = 0;
     PxU32 g2 = 0;
     if (tryParseCollisionGroup(group1, g1) && tryParseCollisionGroup(group2, g2)) {
-        physx::setGroupCollisionFlag(g1, g2, enable);
+        physx::setGroupCollisionFlag(scene, g1, g2, enable);
     }
 }
 
@@ -177,25 +201,23 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
     function("setContactEventEnabled", &setContactEventEnabled, allow_raw_pointers());
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
-    function("getGroupCollisionFlag", &getGroupCollisionFlagBinding);
-    function("setGroupCollisionFlag", &setGroupCollisionFlagBinding);
     function("getGroup", &getGroupBinding, allow_raw_pointers());
     function("setGroup", &setGroupBinding, allow_raw_pointers());
-
-    // GroupsMask filter
-    // function("getGroupsMask", &physx::getGroupsMask, allow_raw_pointers());
-    // function("setGroupsMask", &physx::setGroupsMask, allow_raw_pointers());
-    // function("getFilterOps", &physx::getFilterOps);
-    // function("setFilterOps", &physx::setFilterOps);
-    // function("getFilterBool", &physx::getFilterBool);
-    // function("setFilterBool", &physx::setFilterBool);
-    // function("getFilterConstants", &physx::getFilterConstants);
-    // function("setFilterConstants", &physx::setFilterConstants);
 
     class_<PxSimulationEventCallback>("PxSimulationEventCallback")
             .allow_subclass<PxSimulationEventCallbackWrapper>("PxSimulationEventCallbackWrapper"); // ✅
 
-    class_<PxSceneDesc>("PxSceneDesc").constructor<PxTolerancesScale>().property("gravity", &PxSceneDesc::gravity); // ✅
+    class_<PxSceneDesc>("PxSceneDesc")
+            .constructor<PxTolerancesScale>()
+            .property("gravity", &PxSceneDesc::gravity)
+            .property("bounceThresholdVelocity", &PxSceneDesc::bounceThresholdVelocity)
+            .function("setSolverType", optional_override([](PxSceneDesc &desc, bool useTgs) {
+                          desc.solverType = useTgs ? PxSolverType::eTGS : PxSolverType::ePGS;
+                      }))
+            .function("setKinematicPairs", optional_override([](PxSceneDesc &desc, bool kineKine, bool staticKine) {
+                          desc.kineKineFilteringMode = kineKine ? PxPairFilteringMode::eKEEP : PxPairFilteringMode::eDEFAULT;
+                          desc.staticKineFilteringMode = staticKine ? PxPairFilteringMode::eKEEP : PxPairFilteringMode::eDEFAULT;
+                      }));
 
     // class_<PxSceneFlags>("PxSceneFlags");
     // enum_<PxSceneFlag::Enum>("PxSceneFlag")
@@ -215,6 +237,10 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
 
     /** PhysXPhysicsManager ✅ */
     class_<PxScene>("PxScene")
+            .function("getGroupCollisionFlag", &getGroupCollisionFlagBinding)
+            .function("setGroupCollisionFlag", &setGroupCollisionFlagBinding)
+            .function("setPairIgnored", &physx::setPairIgnored)
+            .function("removeIgnoredPairs", &physx::removeIgnoredPairs)
             .function("setGravity", &PxScene::setGravity)  // ✅
             // .function("getGravity", &PxScene::getGravity)
             .function("addActor", &PxScene::addActor, allow_raw_pointers())        // ✅

@@ -405,8 +405,9 @@ static bool filterJointedBodies(const Sc::BodySim* body, const ActorSim& other)
 		if(interaction->getType() == InteractionType::eCONSTRAINTSHADER)
 		{
 			ConstraintInteraction* csi = static_cast<ConstraintInteraction*>(interaction);
-			if((&csi->getActorSim0() == actorToMatch) || (&csi->getActorSim1() == actorToMatch))
-				return !(csi->getConstraint()->getCore().getFlags() & PxConstraintFlag::eCOLLISION_ENABLED);
+			if(((&csi->getActorSim0() == actorToMatch) || (&csi->getActorSim1() == actorToMatch)) &&
+				!(csi->getConstraint()->getCore().getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+				return true;
 		}
 	}
 	return false;
@@ -463,12 +464,7 @@ static PxFilterInfo filterRbCollisionPair(const FilteringContext& context, const
 	const PxU32 trigger0 = s0.getFlags() & PxShapeFlag::eTRIGGER_SHAPE;
 	const PxU32 trigger1 = s1.getFlags() & PxShapeFlag::eTRIGGER_SHAPE;
 	isTriggerPair = (trigger0 | trigger1)!=0;
-	if(isTriggerPair)
-	{
-		if(trigger0 && trigger1)	// // trigger-trigger pairs are not supported
-			return filterOutRbCollisionPair(context.mFilterPairManager, filterPairIndex, PxFilterFlag::eKILL);
-	}
-	else
+	if(!isTriggerPair)
 	{
 		const bool kine0 = b0 ? b0->isKinematic() : false;
 		const bool kine1 = b1 ? b1->isKinematic() : false;

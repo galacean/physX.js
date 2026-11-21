@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
@@ -56,6 +57,18 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
                           }
                           joint.setConstraintFlag(PxConstraintFlag::Enum(flag), value);
                       }))  // ✅
+            .function("setBreakEventId", optional_override([](PxJoint &joint, PxU32 id) {
+                          joint.userData = reinterpret_cast<void *>(static_cast<uintptr_t>(id));
+                      }))
+            .function("isBroken", optional_override([](const PxJoint &joint) {
+                          return joint.getConstraintFlags().isSet(PxConstraintFlag::eBROKEN);
+                      }))
+            .function("getReactionForce", optional_override([](const PxJoint &joint, const val &linear, const val &angular) {
+                          PxVec3 force, torque;
+                          joint.getConstraint()->getForce(force, torque);
+                          linear.call<void>("set", force.x, force.y, force.z);
+                          angular.call<void>("set", torque.x, torque.y, torque.z);
+                      }))
             .function("setInvMassScale0", optional_override([](PxJoint &joint, PxReal invMassScale) {
                           if (PxIsFinite(invMassScale) && invMassScale >= 0.0f) {
                               joint.setInvMassScale0(invMassScale);
@@ -165,72 +178,54 @@ EMSCRIPTEN_BINDINGS(physx_joint) {
             //           }))                                                                                  // ✅
             // .function("setProjectionLinearTolerance", &PxPrismaticJoint::setProjectionLinearTolerance)     // ✅
             // .function("setProjectionAngularTolerance", &PxPrismaticJoint::setProjectionAngularTolerance);  // ✅
-    /* PhysXConfigurableJoint ✅ */
-    // class_<PxD6Joint, base<PxJoint>>("PxD6Joint")
-    //         .function("setMotion", optional_override([](PxD6Joint &joint, int axis, int type) {
-    //                       joint.setMotion(PxD6Axis::Enum(axis), PxD6Motion::Enum(type));
-    //                   }))  // ✅
-    //         .function("setHardDistanceLimit", optional_override([](PxD6Joint &joint, PxTolerancesScale &scale,
-    //                                                                PxReal extent, PxReal contactDist) {
-    //                       joint.setDistanceLimit(PxJointLinearLimit(scale, extent, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftDistanceLimit",
-    //                   optional_override([](PxD6Joint &joint, PxReal extent, PxReal stiffness, PxReal damping) {
-    //                       joint.setDistanceLimit(PxJointLinearLimit(extent, PxSpring(stiffness, damping)));
-    //                   }))  // ✅
-    //         .function("setHardLinearLimit",
-    //                   optional_override([](PxD6Joint &joint, int axis, PxTolerancesScale &scale, PxReal lowerLimit,
-    //                                        PxReal upperLimit, PxReal contactDist) {
-    //                       joint.setLinearLimit(PxD6Axis::Enum(axis),
-    //                                            PxJointLinearLimitPair(scale, lowerLimit, upperLimit, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftLinearLimit", optional_override([](PxD6Joint &joint, int axis, PxReal lowerLimit,
-    //                                                              PxReal upperLimit, PxReal stiffness, PxReal damping) {
-    //                       joint.setLinearLimit(
-    //                               PxD6Axis::Enum(axis),
-    //                               PxJointLinearLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-    //                   }))  // ✅
-    //         .function("setHardTwistLimit",
-    //                   optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
-    //                       joint.setTwistLimit(PxJointAngularLimitPair(lowerLimit, upperLimit, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftTwistLimit", optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit,
-    //                                                             PxReal stiffness, PxReal damping) {
-    //                       joint.setTwistLimit(
-    //                               PxJointAngularLimitPair(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-    //                   }))  // ✅
-    //         .function("setHardSwingLimit",
-    //                   optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit, PxReal contactDist) {
-    //                       joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftSwingLimit", optional_override([](PxD6Joint &joint, PxReal lowerLimit, PxReal upperLimit,
-    //                                                             PxReal stiffness, PxReal damping) {
-    //                       joint.setSwingLimit(PxJointLimitCone(lowerLimit, upperLimit, PxSpring(stiffness, damping)));
-    //                   }))  // ✅
-    //         .function("setHardPyramidSwingLimit",
-    //                   optional_override([](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax,
-    //                                        PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal contactDist) {
-    //                       joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin,
-    //                                                                      zLimitAngleMax, contactDist));
-    //                   }))  // ✅
-    //         .function("setSoftPyramidSwingLimit",
-    //                   optional_override([](PxD6Joint &joint, PxReal yLimitAngleMin, PxReal yLimitAngleMax,
-    //                                        PxReal zLimitAngleMin, PxReal zLimitAngleMax, PxReal stiffness,
-    //                                        PxReal damping) {
-    //                       joint.setPyramidSwingLimit(PxJointLimitPyramid(yLimitAngleMin, yLimitAngleMax, zLimitAngleMin,
-    //                                                                      zLimitAngleMax, PxSpring(stiffness, damping)));
-    //                   }))  // ✅
-    //         .function("setDrive", optional_override([](PxD6Joint &joint, int index, PxReal driveStiffness,
-    //                                                    PxReal driveDamping, PxReal driveForceLimit) {
-    //                       joint.setDrive(PxD6Drive::Enum(index),
-    //                                      PxD6JointDrive(driveStiffness, driveDamping, driveForceLimit));
-    //                   }))  // ✅
-    //         .function("setDrivePosition", optional_override([](PxD6Joint &joint, const PxVec3 &pos, const PxQuat &rot) {
-    //                       joint.setDrivePosition(PxTransform(pos, rot));
-    //                   }))                                                                           // ✅
-    //         .function("setDriveVelocity", &PxD6Joint::setDriveVelocity)                             // ✅
-    //         .function("setProjectionLinearTolerance", &PxD6Joint::setProjectionLinearTolerance)     // ✅
-    //         .function("setProjectionAngularTolerance", &PxD6Joint::setProjectionAngularTolerance);  // ✅
+    class_<PxD6Joint, base<PxJoint>>("PxD6Joint")
+            .function("setMotion", optional_override([](PxD6Joint &joint, PxU32 axis, PxU32 motion) {
+                          if (axis < PxD6Axis::eCOUNT && motion <= PxD6Motion::eFREE) {
+                              joint.setMotion(PxD6Axis::Enum(axis), PxD6Motion::Enum(motion));
+                          }
+                      }))
+            .function("setLinearLimit", optional_override([](PxD6Joint &joint, PxU32 axis, PxReal lower, PxReal upper,
+                                                             PxReal stiffness, PxReal damping) {
+                          const PxJointLinearLimitPair limit(lower, upper, PxSpring(stiffness, damping));
+                          if (axis <= PxD6Axis::eZ && limit.isValid()) {
+                              joint.setLinearLimit(PxD6Axis::Enum(axis), limit);
+                          }
+                      }))
+            .function("setTwistLimit", optional_override([](PxD6Joint &joint, PxReal lower, PxReal upper,
+                                                            PxReal stiffness, PxReal damping) {
+                          const PxJointAngularLimitPair limit(lower, upper, PxSpring(stiffness, damping));
+                          if (limit.isValid()) {
+                              joint.setTwistLimit(limit);
+                          }
+                      }))
+            .function("setSwingLimit", optional_override([](PxD6Joint &joint, PxReal y, PxReal z,
+                                                            PxReal stiffness, PxReal damping) {
+                          const PxJointLimitCone limit(y, z, PxSpring(stiffness, damping));
+                          if (limit.isValid()) {
+                              joint.setSwingLimit(limit);
+                          }
+                      }))
+            .function("setDrive", optional_override([](PxD6Joint &joint, PxU32 index, PxReal stiffness, PxReal damping,
+                                                       PxReal forceLimit, bool acceleration) {
+                          if (index < PxD6Drive::eCOUNT && sanitizeNonNegativeMaxF32(forceLimit)) {
+                              const PxD6JointDrive drive(stiffness, damping, forceLimit, acceleration);
+                              if (drive.isValid()) {
+                                  joint.setDrive(PxD6Drive::Enum(index), drive);
+                              }
+                          }
+                      }))
+            .function("setDrivePosition", optional_override([](PxD6Joint &joint, const PxVec3 &position,
+                                                               const PxQuat &rotation) {
+                          if (position.isFinite() && rotation.isSane()) {
+                              joint.setDrivePosition(PxTransform(position, rotation), false);
+                          }
+                      }))
+            .function("setDriveVelocity", optional_override([](PxD6Joint &joint, const PxVec3 &linear,
+                                                               const PxVec3 &angular) {
+                          if (linear.isFinite() && angular.isFinite()) {
+                              joint.setDriveVelocity(linear, angular, false);
+                          }
+                      }));
 }
 
 namespace emscripten {
