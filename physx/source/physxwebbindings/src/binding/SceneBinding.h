@@ -302,6 +302,11 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
                       allow_raw_pointers())
             .function("setDebugVisualization", &setDebugVisualization)
             .function("getDebugLines", &getDebugLines)
+            .function("shiftOrigin", optional_override([](PxScene &scene, const PxVec3 &offset) {
+                          if (!offset.isFinite() || !PxIsSceneSimulationIdle(scene)) return false;
+                          scene.shiftOrigin(offset);
+                          return true;
+                      }))
             .function("getGroupCollisionFlag", &getGroupCollisionFlagBinding)
             .function("setGroupCollisionFlag", &setGroupCollisionFlagBinding)
             .function("setPairIgnored", &physx::setPairIgnored)

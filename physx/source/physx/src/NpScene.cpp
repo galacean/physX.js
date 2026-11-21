@@ -2916,12 +2916,8 @@ void NpScene::shiftOrigin(const PxVec3& shift)
 	//
 	mSQManager.shiftOrigin(shift);
 
-#if PX_ENABLE_DEBUG_VISUALIZATION
-	//
-	// debug visualization
-	//
-	mRenderBuffer.shift(-shift);
-#endif
+	// Discard the previous simulation's debug sample until the next step completes.
+	mRenderBuffer.clear();
 }
 
 #if PX_SUPPORT_PVD

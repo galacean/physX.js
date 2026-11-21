@@ -219,9 +219,9 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               manager.computeInteractions(elapsedTime, &filter);
                           }
                       }))
+            .function("shiftOrigin", &PxControllerManager::shiftOrigin)
             .function("release", &PxControllerManager::release);  // ✅
             // .function("setTessellation", &PxControllerManager::setTessellation)                                // ✅
-            // .function("shiftOrigin", &PxControllerManager::shiftOrigin);              // ✅
     /** PhysXCharacterControllerDesc ✅ */
     class_<PxControllerDesc>("PxControllerDesc")
             // .function("isValid", &PxControllerDesc::isValid)
