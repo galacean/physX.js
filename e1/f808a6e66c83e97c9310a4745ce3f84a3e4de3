@@ -1,0 +1,30 @@
+physx/include/extensions/PxRigidBodyExt.h
+  s_d2c65ec75a2f3e::t_49acd9721cee4b 112-113,115-117
+  s_d2c65ec75a2f3e::t_e208ada89fc6d6 111,114
+physx/source/physxextensions/src/ExtRigidBodyExt.cpp
+  s_d2c65ec75a2f3e::t_49acd9721cee4b 321-347,354-358,366,374,391,455
+  s_d2c65ec75a2f3e::t_e208ada89fc6d6 54,316-317,319-320,348-349,351-353,359-365,367-373,375-390
+  s_d2c65ec75a2f3e::t_a63f27d55c9cce 318,350
+  s_d2c65ec75a2f3e::t_61b9e022d69185 392
+physx/include/extensions/PxMassProperties.h
+  s_d2c65ec75a2f3e::t_49acd9721cee4b 138
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_d2c65ec75a2f3e::t_e208ada89fc6d6 251-256
+  s_d2c65ec75a2f3e::t_2bf17080a2f8cb 18,21,50,54,59-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e1f808a6e66c83e97c9310a4745ce3f84a3e4de3",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
