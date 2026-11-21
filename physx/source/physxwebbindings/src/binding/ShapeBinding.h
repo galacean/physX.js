@@ -24,11 +24,6 @@ static PxTransform shapeWorldPose(const PxShape &shape) {
     return actor->getGlobalPose() * local;
 }
 
-static bool isVolumeGeometry(PxGeometryType::Enum type) {
-    return type == PxGeometryType::eBOX || type == PxGeometryType::eSPHERE ||
-           type == PxGeometryType::eCAPSULE || type == PxGeometryType::eCONVEXMESH;
-}
-
 EMSCRIPTEN_BINDINGS(physx_shape) {
     function("PxCreatePlane", &PxCreatePlane, allow_raw_pointers());
 

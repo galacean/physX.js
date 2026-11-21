@@ -15,6 +15,54 @@ inline bool canApplyDynamicForce(const PxRigidBody &body) {
            !(body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION);
 }
 
+inline void addExplosionForce(PxRigidBody &body, PxReal strength, const PxVec3 &origin, double radius,
+                              PxReal upwardOffset, PxForceMode::Enum mode) {
+    if (!canApplyDynamicForce(body) || !origin.isFinite() || !PxIsFinite(strength) ||
+        !PxIsFinite(radius) || radius < 0 || !PxIsFinite(upwardOffset)) return;
+
+    const PxTransform pose = body.getGlobalPose();
+    const PxVec3 center = pose.transform(body.getCMassLocalPose().p);
+    PxVec3 point = center;
+    PxReal closest = PX_MAX_F32;
+    for (PxU32 i = 0, count = body.getNbShapes(); i < count; ++i) {
+        PxShape *shape;
+        body.getShapes(&shape, 1, i);
+        const PxGeometryHolder geometry = shape->getGeometry();
+        if (!isVolumeGeometry(geometry.getType())) continue;
+
+        PxVec3 surface;
+        const PxReal distance = PxGeometryQuery::pointDistance(origin, geometry.any(), pose * shape->getLocalPose(), &surface);
+        if (distance == 0) {
+            point = center;
+            break;
+        }
+        if (distance > 0 && distance < closest) {
+            closest = distance;
+            point = surface;
+        }
+    }
+
+    const double x = double(point.x) - origin.x;
+    const double y = double(point.y) - origin.y;
+    const double z = double(point.z) - origin.z;
+    const double xzSquared = x * x + z * z;
+    const double falloff = radius == 0 ? 1.0 : 1.0 - std::sqrt(xzSquared + y * y) / radius;
+    if (falloff <= 0) return;
+
+    const double raisedY = y + upwardOffset;
+    const double length = std::sqrt(xzSquared + raisedY * raisedY);
+    if (length == 0) return;
+
+    const double scale = strength * falloff / length;
+    const PxVec3 force(PxReal(x * scale), PxReal(raisedY * scale), PxReal(z * scale));
+    const PxVec3 torque = (point - center).cross(force);
+    if (force.isFinite() && torque.isFinite()) {
+        // Pass the same mode to both accumulators so acceleration and velocity changes bypass mass and inertia.
+        body.addForce(force, mode, true);
+        body.addTorque(torque, mode, true);
+    }
+}
+
 EMSCRIPTEN_BINDINGS(physx_actor) {
     enum_<PxForceMode::Enum>("PxForceMode")
             .value("eFORCE", PxForceMode::eFORCE)
@@ -132,6 +180,19 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                               body.addForce(force, mode, true);
                           }
                       }))  // ✅
+            .function("addRelativeForce",
+                      optional_override([](PxRigidBody &body, const PxVec3 &force, PxForceMode::Enum mode) {
+                          if (!canApplyDynamicForce(body)) return;
+                          const PxVec3 worldForce = body.getGlobalPose().rotate(force);
+                          if (worldForce.isFinite()) body.addForce(worldForce, mode, true);
+                      }))
+            .function("addRelativeTorque",
+                      optional_override([](PxRigidBody &body, const PxVec3 &torque, PxForceMode::Enum mode) {
+                          if (!canApplyDynamicForce(body)) return;
+                          const PxVec3 worldTorque = body.getGlobalPose().rotate(torque);
+                          if (worldTorque.isFinite()) body.addTorque(worldTorque, mode, true);
+                      }))
+            .function("addExplosionForce", &addExplosionForce)
             .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
                           if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
                               PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
