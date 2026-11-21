@@ -280,7 +280,8 @@ class PxControllerFilters
 									mFilterData			(filterData),
 									mFilterCallback		(cb),
 									mFilterFlags		(PxQueryFlag::eSTATIC|PxQueryFlag::eDYNAMIC|PxQueryFlag::ePREFILTER),
-									mCCTFilterCallback	(cctFilterCb)
+									mCCTFilterCallback	(cctFilterCb),
+									mReuseGeometryCache	(true)
 								{}
 
 	// CCT-vs-shapes:
@@ -290,6 +291,8 @@ class PxControllerFilters
 	PxQueryFlags				mFilterFlags;			//!< Flags for internal PxQueryFilterData structure. Passed to PxScene::overlap() call.
 	// CCT-vs-CCT:
 	PxControllerFilterCallback*	mCCTFilterCallback;		//!< CCT-vs-CCT filter callback. If NULL, all CCT-vs-CCT collisions are kept.
+
+	bool						mReuseGeometryCache;	//!< Use false for one-off filters. Geometry refresh preserves support contacts.
 };
 
 /**

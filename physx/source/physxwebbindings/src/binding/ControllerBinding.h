@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -8,6 +9,7 @@
 
 #include "../BindingHelper.h"
 #include "../SimulationFilterShader.h"
+#include "PsInlineArray.h"
 #include "PxPhysicsAPI.h"
 
 using namespace physx;
@@ -22,11 +24,16 @@ inline PxFilterData getControllerFilterData(const PxController &ctrl) {
     return PxFilterData();
 }
 
+using ControllerExcludedIds = shdfnd::InlineArray<PxU32, 8>;
+
 struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback {
     const PxScene &scene;
     PxFilterData controllerData;
+    PxU32 layerMask;
+    const ControllerExcludedIds &excluded;
 
-    ControllerLayerFilter(const PxScene &owner, PxFilterData data) : scene(owner), controllerData(data) {}
+    ControllerLayerFilter(const PxScene &owner, PxFilterData data, PxU32 mask, const ControllerExcludedIds &excludedIds)
+        : scene(owner), controllerData(data), layerMask(mask), excluded(excludedIds) {}
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
                                    const PxRigidActor *, PxHitFlags &) override {
@@ -35,7 +42,7 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
         if (!shape || !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE)) {
             return PxQueryHitType::eNONE;
         }
-        return physx::shouldCollide(scene, controllerData, shape->getSimulationFilterData())
+        return accepts(shape->getSimulationFilterData())
                    ? PxQueryHitType::eBLOCK
                    : PxQueryHitType::eNONE;
     }
@@ -44,8 +51,15 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
         return PxQueryHitType::eNONE;
     }
 
-    bool filter(const PxController &a, const PxController &b) override {
-        return physx::shouldCollide(scene, getControllerFilterData(a), getControllerFilterData(b));
+    bool filter(const PxController &, const PxController &target) override {
+        return accepts(getControllerFilterData(target));
+    }
+
+private:
+    bool accepts(const PxFilterData &target) const {
+        return target.word0 < 32 && (layerMask & (1u << target.word0)) &&
+               std::find(excluded.begin(), excluded.end(), target.word1) == excluded.end() &&
+               physx::shouldCollide(scene, controllerData, target);
     }
 };
 
@@ -92,6 +106,32 @@ private:
 inline ControllerHitReport &getControllerHitReport() {
     static ControllerHitReport report;
     return report;
+}
+
+inline PxU32 moveController(PxController &controller, const PxVec3 &disp, PxF32 minDist, PxF32 elapsedTime,
+                           bool collectHits, PxU32 layerMask = ~PxU32(0), const val *excludedIds = nullptr) {
+    auto &report = getControllerHitReport();
+    if (!disp.isFinite() || !PxIsFinite(minDist) || minDist < 0.0f ||
+        !PxIsFinite(elapsedTime) || elapsedTime < 0.0f) {
+        report.values[0] = 1;
+        return 0;
+    }
+
+    ControllerExcludedIds excluded;
+    if (excludedIds && !excludedIds->isUndefined() && !excludedIds->isNull()) {
+        const auto count = (*excludedIds)["length"].as<PxU32>();
+        excluded.resize(count);
+        for (PxU32 i = 0; i < count; ++i) excluded[i] = (*excludedIds)[i].as<PxU32>();
+    }
+
+    ControllerLayerFilter filter(*controller.getScene(), getControllerFilterData(controller), layerMask, excluded);
+    PxControllerFilters filters(nullptr, &filter, &filter);
+    filters.mReuseGeometryCache = layerMask == ~PxU32(0) && excluded.size() == 0;
+    report.values[0] = 1;
+    report.collecting = collectHits;
+    const PxU32 flags = controller.move(disp, minDist, elapsedTime, filters);
+    report.collecting = false;
+    return flags;
 }
 
 class ControllerPlatformBehavior final : public PxControllerBehaviorCallback {
@@ -202,20 +242,14 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
             //               return flags.isSet(PxControllerCollisionFlag::Enum(flag));
             //           }))  // ✅
             .function("move", optional_override([](PxController &controller, const PxVec3 &disp, PxF32 minDist,
-                                                   PxF32 elapsedTime, bool collectHits) -> uint32_t {
-                          auto &report = getControllerHitReport();
-                          report.values[0] = 1;
-                          if (!disp.isFinite() || !PxIsFinite(minDist) || minDist < 0.0f ||
-                              !PxIsFinite(elapsedTime) || elapsedTime < 0.0f) {
-                              return 0;
-                          }
-                          ControllerLayerFilter filter(*controller.getScene(), getControllerFilterData(controller));
-                          PxControllerFilters filters(nullptr, &filter, &filter);
-                          report.collecting = collectHits;
-                          const uint32_t flags = controller.move(disp, minDist, elapsedTime, filters);
-                          report.collecting = false;
-                          return flags;
-                      }))  // ✅
+                                                   PxF32 elapsedTime, bool collectHits) {
+                          return moveController(controller, disp, minDist, elapsedTime, collectHits);
+                      }))
+            .function("moveWithFilter", optional_override([](PxController &controller, const PxVec3 &disp, PxF32 minDist,
+                                                             PxF32 elapsedTime, bool collectHits, PxU32 layerMask,
+                                                             const val &excludedIds) {
+                          return moveController(controller, disp, minDist, elapsedTime, collectHits, layerMask, &excludedIds);
+                      }))
             .function("setPosition", optional_override([](PxController &controller, const PxExtendedVec3 &pos) {
                           if (!std::isfinite(pos.x) || !std::isfinite(pos.y) || !std::isfinite(pos.z)) {
                               return false;

@@ -2221,6 +2221,9 @@ PxControllerCollisionFlags Controller::move(SweptVolume& volume, const PxVec3& o
 	if(lockWrite)
 		mWriteLock.lock();	
 
+	if(!filters.mReuseGeometryCache)
+		mCctModule.mCacheBounds.setEmpty();
+
 	mGlobalTime += PxF64(elapsedTime);
 
 	// Init CCT with per-controller settings
@@ -2515,6 +2518,9 @@ PxControllerCollisionFlags Controller::move(SweptVolume& volume, const PxVec3& o
 	}
 
 	mManager->resetObstaclesBuffers();
+
+	if(!filters.mReuseGeometryCache)
+		mCctModule.mCacheBounds.setEmpty();
 
 	if (lockWrite)
 		mWriteLock.unlock();
