@@ -18,13 +18,18 @@ PxU32 getLastConvexCookingResult() { return g_lastConvexCookingResult; }
 PxU32 getLastTriMeshCookingResult() { return g_lastTriMeshCookingResult; }
 
 PxConvexMesh *createConvexMeshFromBuffer(int vertices, PxU32 vertCount, PxCooking &cooking, PxPhysics &physics) {
+    if (!vertices || vertCount < 4) {
+        g_lastConvexCookingResult = (PxU32)PxConvexMeshCookingResult::eFAILURE;
+        return nullptr;
+    }
+
     PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vertCount;
     convexDesc.points.stride = sizeof(PxVec3);
     convexDesc.points.data = (PxVec3 *)vertices;
     convexDesc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
 
-    PxConvexMeshCookingResult::Enum result;
+    PxConvexMeshCookingResult::Enum result = PxConvexMeshCookingResult::eFAILURE;
     PxConvexMesh *convexMesh = cooking.createConvexMesh(convexDesc, physics.getPhysicsInsertionCallback(), &result);
     g_lastConvexCookingResult = (PxU32)result;
 
@@ -38,6 +43,11 @@ PxTriangleMesh *createTriMesh(int vertices,
                               bool isU16,
                               PxCooking &cooking,
                               PxPhysics &physics) {
+    if (!vertices || vertCount < 3 || !indices || triangleCount == 0) {
+        g_lastTriMeshCookingResult = (PxU32)PxTriangleMeshCookingResult::eFAILURE;
+        return nullptr;
+    }
+
     PxTriangleMeshDesc meshDesc;
     meshDesc.points.count = vertCount;
     meshDesc.points.stride = sizeof(PxVec3);
@@ -53,7 +63,7 @@ PxTriangleMesh *createTriMesh(int vertices,
         meshDesc.triangles.data = (PxU32 *)indices;
     }
 
-    PxTriangleMeshCookingResult::Enum result;
+    PxTriangleMeshCookingResult::Enum result = PxTriangleMeshCookingResult::eFAILURE;
     PxTriangleMesh *triangleMesh = cooking.createTriangleMesh(meshDesc, physics.getPhysicsInsertionCallback(), &result);
     g_lastTriMeshCookingResult = (PxU32)result;
     return triangleMesh;
@@ -65,6 +75,10 @@ PxHeightField *createHeightField(int samples,
                                   PxHeightFieldFlags flags,
                                   PxCooking &cooking,
                                   PxPhysics &physics) {
+    if (!samples || nbRows < 2 || nbColumns < 2) {
+        return nullptr;
+    }
+
     PxHeightFieldDesc hfDesc;
     hfDesc.nbRows = nbRows;
     hfDesc.nbColumns = nbColumns;
@@ -81,6 +95,9 @@ PxHeightField *createHeightField(int samples,
 PxTriangleMeshGeometry *createTriMeshGeometry(PxTriangleMesh *mesh,
                                                float scaleX, float scaleY, float scaleZ,
                                                int flags) {
+    if (!mesh) {
+        return nullptr;
+    }
     PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
     return new PxTriangleMeshGeometry(mesh, scale, PxMeshGeometryFlags(flags));
 }
@@ -89,6 +106,9 @@ PxTriangleMeshGeometry *createTriMeshGeometry(PxTriangleMesh *mesh,
 PxConvexMeshGeometry *createConvexMeshGeometry(PxConvexMesh *mesh,
                                                 float scaleX, float scaleY, float scaleZ,
                                                 int flags) {
+    if (!mesh) {
+        return nullptr;
+    }
     PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
     return new PxConvexMeshGeometry(mesh, scale, PxConvexMeshGeometryFlags(flags));
 }
@@ -120,7 +140,9 @@ void setCookingMeshPreprocessParams(PxCookingParams &params, PxU32 flags) {
 
 // Midphase type helper: 0 = eBVH33, 1 = eBVH34
 void setCookingMidphaseType(PxCookingParams &params, PxU32 type) {
-    params.midphaseDesc.setToDefault(static_cast<PxMeshMidPhase::Enum>(type));
+    if (type < PxMeshMidPhase::eLAST) {
+        params.midphaseDesc.setToDefault(static_cast<PxMeshMidPhase::Enum>(type));
+    }
 }
 
 // Helper function to create ConvexMesh shape directly
@@ -129,6 +151,10 @@ PxShape *createConvexMeshShape(PxConvexMesh *mesh,
                                int geoFlags, int shapeFlags,
                                PxMaterial &material,
                                PxPhysics &physics) {
+    if (!mesh) {
+        return nullptr;
+    }
+
     PxMeshScale scale(PxVec3(scaleX, scaleY, scaleZ), PxQuat(PxIdentity));
     PxConvexMeshGeometry geometry(mesh, scale, PxConvexMeshGeometryFlags(geoFlags));
     return physics.createShape(geometry, material, true, PxShapeFlags(shapeFlags));

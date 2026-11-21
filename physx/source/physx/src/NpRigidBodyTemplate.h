@@ -487,7 +487,7 @@ PX_FORCE_INLINE void NpRigidBodyTemplate<APIClass>::setRigidBodyFlagsInternal(co
 
 	Scb::Body& body = getScbBodyFast();
 	NpScene* scene = NpActor::getAPIScene(*this);
-	Sc::Scene* scScene = scene ? &scene->getScene().getScScene() : NULL;
+	Sc::Scene* scScene = scene && !(body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION) ? &scene->getScene().getScScene() : NULL;
 
 	const bool isKinematic = currentFlags & PxRigidBodyFlag::eKINEMATIC;
 	const bool willBeKinematic = filteredNewFlags & PxRigidBodyFlag::eKINEMATIC;

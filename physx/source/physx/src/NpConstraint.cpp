@@ -94,7 +94,7 @@ NpConstraint::NpConstraint(PxRigidActor* actor0, PxRigidActor* actor1, PxConstra
 ,	mIsDirty	(true)
 {
 	
-	mConstraint.setFlags(shaders.flag);
+	mConstraint.setFlags(shaders.flag | PxConstraintFlag::eVISUALIZATION);
 	if(actor0)
 		NpActor::getFromPxActor(*actor0).addConnector(NpConnectorType::eConstraint, this, "PxConstraint: Add to rigid actor 0: Constraint already added");
 	if(actor1)

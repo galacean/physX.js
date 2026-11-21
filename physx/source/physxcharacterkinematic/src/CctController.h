@@ -57,12 +57,13 @@ namespace Cct
 														Controller(const PxControllerDesc& desc, PxScene* scene);
 		virtual											~Controller();
 
+					void								setSlopeWalls(PxF32 wallHeight, PxF32 jumpHeight);
 					void								releaseInternal();
 					void								getInternalState(PxControllerState& state)	const;
 					void								getInternalStats(PxControllerStats& stats)	const;					
 
 		virtual		PxF32								getHalfHeightInternal()				const	= 0;
-		virtual		bool								getWorldBox(PxExtendedBounds3& box)	const	= 0;
+		virtual		void								getWorldBox(PxExtendedBounds3& box)	const	= 0;
 		virtual		PxController*						getPxController()							= 0;
 
 					void								onOriginShift(const PxVec3& shift);
@@ -104,6 +105,8 @@ namespace Cct
 	protected:
 		// Internal methods
 					void								setUpDirectionInternal(const PxVec3& up);
+					void								setSlopeLimitInternal(PxF32 slopeLimit);
+					void								invalidateGeometryCache();
 					PxShape*							getKineShape()	const;
 					bool								createProxyActor(PxPhysics& sdk, const PxGeometry& geometry, const PxMaterial& material);
 					bool								setPos(const PxExtendedVec3& pos);

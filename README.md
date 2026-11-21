@@ -24,10 +24,12 @@ BUILD_DEBUG=1 ./build.sh
 ```
 
 Build outputs:
-- `physx.release.js` / `physx.release.wasm` — standard release build
-- `physx.release.simd.js` / `physx.release.simd.wasm` — SIMD-optimized release build
-- `physx.debug.js` / `physx.debug.wasm` — debug build with PVD support (requires `BUILD_DEBUG=1`)
-- `physx.debug.simd.js` / `physx.debug.simd.wasm` — SIMD debug build (requires `BUILD_DEBUG=1`)
+- `physx.release.{js,mjs,wasm}` — standard release build
+- `physx.release.simd.{js,mjs,wasm}` — SIMD-optimized release build
+- `physx.debug.{js,mjs,wasm}` — debug build with PVD support (requires `BUILD_DEBUG=1`)
+- `physx.debug.simd.{js,mjs,wasm}` — SIMD debug build (requires `BUILD_DEBUG=1`)
+
+For each variant, the classic `.js` loader and the `.mjs` default factory use the same `.wasm` file.
 
 ## Development
 

@@ -253,8 +253,8 @@ void ShapeSim::onFlagChange(PxShapeFlags oldFlags)
 	{
 		if(!oldBp && newBp)
 		{
-			// A.B. if a trigger was removed and inserted within the same frame we need to reinsert
-			if(hasTriggerFlags(newFlags) && getScene().getAABBManager()->isMarkedForRemove(getElementID()))
+			// Reinsert to rebuild interactions removed earlier in the same step.
+			if(getScene().getAABBManager()->isMarkedForRemove(getElementID()))
 			{
 				reinsertBroadPhase();
 			}
@@ -271,7 +271,9 @@ void ShapeSim::onFlagChange(PxShapeFlags oldFlags)
 		const bool wasTrigger = hasTriggerFlags(oldFlags)!=0;
 		const bool isTrigger = hasTriggerFlags(newFlags)!=0;
 		if(wasTrigger != isTrigger)
-			reinsertBroadPhase();  // re-insertion is necessary because trigger pairs get killed
+			reinsertBroadPhase();  // Rebuild pairs when the broad-phase trigger category changes.
+		else if(newBp && !isTrigger && ((oldFlags ^ newFlags) & PxShapeFlag::eMODIFY_CONTACTS))
+			onFilterDataChange();
 	}
 
 	const PxShapeFlags hadSq = oldFlags & PxShapeFlag::eSCENE_QUERY_SHAPE;

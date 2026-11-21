@@ -657,7 +657,7 @@ PX_INLINE bool Body::getKinematicTarget(PxTransform& p) const
 		p = getBodyBuffer()->mKinematicTarget;
 		return true;
 	}
-	else if(getControlState() != ControlState::eREMOVE_PENDING)
+	else if(getControlState() != ControlState::eREMOVE_PENDING && !isBuffered(Buf::BF_PutToSleep))
 		return mBodyCore.getKinematicTarget(p);
 	else
 		return false;

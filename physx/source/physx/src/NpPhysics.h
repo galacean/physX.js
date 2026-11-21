@@ -111,6 +111,7 @@ public:
 	static		PxU32			releaseInstance();
 
 	static      NpPhysics&		getInstance() { return *mInstance; }
+	static      NpPhysics*		getInstancePtr() { return mInstance; }
 
 	virtual     void			release();
 

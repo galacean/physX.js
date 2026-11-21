@@ -585,7 +585,6 @@ Sc::Scene::Scene(const PxSceneDesc& desc, PxU64 contextID) :
 	mLostTouchPairs					(PX_DEBUG_EXP("sceneLostTouchPairs")),
 	mOutOfBoundsIDs					(PX_DEBUG_EXP("sceneOutOfBoundsIds")),
 	mVisualizationScale				(0.0f),
-	mVisualizationParameterChanged	(false),
 	mNbRigidStatics					(0),
 	mNbRigidDynamics				(0),
 	mNbRigidKinematic				(0),
@@ -631,6 +630,7 @@ Sc::Scene::Scene(const PxSceneDesc& desc, PxU64 contextID) :
 	mCollideStep					(contextID, this, "ScScene.collideStep"),	
 	mTaskPool						(16384),
 	mContactReportsNeedPostSolverVelocity(false),
+	mContactEventsEnabled			(true),
 	mUseGpuRigidBodies				(false),
 	mSimulationStage				(SimulationStage::eCOMPLETE),
 	mTmpConstraintGroupRootBuffer	(NULL),
@@ -1328,6 +1328,34 @@ void Sc::Scene::notifyInteractionDeactivated(Interaction* interaction)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Sc::Scene::markFilterPairDirty(PxU32 first, PxU32 second, bool shapeIds)
+{
+	static const InteractionType::Enum types[3] = {
+		InteractionType::eOVERLAP,
+		InteractionType::eTRIGGER,
+		InteractionType::eMARKER
+	};
+	for(PxU32 t = 0; t < 3; ++t)
+	{
+		Interaction* const* interactions = mInteractions[types[t]].begin();
+		const PxU32 count = mInteractions[types[t]].size();
+		for(PxU32 i = 0; i < count; ++i)
+		{
+			ElementSimInteraction* pair = static_cast<ElementSimInteraction*>(interactions[i]);
+			if(!pair->readInteractionFlag(InteractionFlag::eFILTERABLE))
+				continue;
+			const PxFilterData a = static_cast<const ShapeSim&>(pair->getElement0()).getCore().getSimulationFilterData();
+			const PxFilterData b = static_cast<const ShapeSim&>(pair->getElement1()).getCore().getSimulationFilterData();
+			const PxU32 keyA = shapeIds ? a.word1 : a.word0;
+			const PxU32 keyB = shapeIds ? b.word1 : b.word0;
+			if((keyA == first && keyB == second) || (keyA == second && keyB == first))
+				pair->setDirty(InteractionDirtyFlag::eFILTER_STATE);
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void** Sc::Scene::allocatePointerBlock(PxU32 size)
 {
 	PX_ASSERT(size>32 || size == 32 || size == 16 || size == 8);
@@ -1478,17 +1506,6 @@ void Sc::Scene::prepareCollide()
 
 	// Clear broken constraint list:
 	clearBrokenConstraintBuffer();
-
-	// Update from visualization parameters
-	if(mVisualizationParameterChanged)
-	{
-		mVisualizationParameterChanged = false;
-
-		// Update SIPs if visualization is enabled
-		if(	getVisualizationParameter(PxVisualizationParameter::eCONTACT_POINT) || getVisualizationParameter(PxVisualizationParameter::eCONTACT_NORMAL) || 
-			getVisualizationParameter(PxVisualizationParameter::eCONTACT_ERROR) || getVisualizationParameter(PxVisualizationParameter::eCONTACT_FORCE))
-			mInternalFlags |= SceneInternalFlag::eSCENE_SIP_STATES_DIRTY_VISUALIZATION;
-	}
 
 	visualizeStartStep();
 	
@@ -4279,14 +4296,20 @@ void Sc::Scene::visualizeStartStep()
 	if(getVisualizationParameter(PxVisualizationParameter::eCOLLISION_COMPOUNDS))
 		mAABBManager->visualize(out);
 
-	// Visualize joints
-	Sc::ConstraintCore*const * constraints = mConstraints.getEntries();
-	for(PxU32 i=0, size = mConstraints.size();i<size; i++)
-		constraints[i]->getSim()->visualize(getRenderBuffer());
+	if(getVisualizationParameter(PxVisualizationParameter::eJOINT_LOCAL_FRAMES) ||
+		getVisualizationParameter(PxVisualizationParameter::eJOINT_LIMITS))
+	{
+		Cm::RenderBuffer& buffer = getRenderBuffer();
+		Sc::ConstraintCore* const* constraints = mConstraints.getEntries();
+		for(PxU32 i=0, size = mConstraints.size(); i<size; i++)
+			constraints[i]->getSim()->visualize(buffer);
+	}
 
-	PxsContactManagerOutputIterator outputs = mLLContext->getNphaseImplementationContext()->getContactManagerOutputs();
-
-	mNPhaseCore->visualize(out, outputs);
+	if(hasContactVisualization())
+	{
+		PxsContactManagerOutputIterator outputs = mLLContext->getNphaseImplementationContext()->getContactManagerOutputs();
+		mNPhaseCore->visualize(out, outputs);
+	}
 #endif
 }
 
@@ -5142,7 +5165,9 @@ PxU32 Sc::Scene::getSolverArticBatchSize() const
 
 void Sc::Scene::setVisualizationParameter(PxVisualizationParameter::Enum param, PxReal value)
 {
-	mVisualizationParameterChanged = true;
+	const bool affectsContacts = param == PxVisualizationParameter::eSCALE ||
+		(param >= PxVisualizationParameter::eCONTACT_POINT && param <= PxVisualizationParameter::eCONTACT_FORCE);
+	const bool hadContactVisualization = affectsContacts && hasContactVisualization();
 
 	PX_ASSERT(mLLContext->getVisualizationParameter(PxVisualizationParameter::eSCALE) == mVisualizationScale); // Safety check because the scale is duplicated for performance reasons
 
@@ -5150,6 +5175,9 @@ void Sc::Scene::setVisualizationParameter(PxVisualizationParameter::Enum param, 
 
 	if (param == PxVisualizationParameter::eSCALE)
 		mVisualizationScale = value;
+
+	if (affectsContacts && hadContactVisualization != hasContactVisualization())
+		mInternalFlags |= SceneInternalFlag::eSCENE_SIP_STATES_DIRTY_VISUALIZATION;
 }
 
 PxReal Sc::Scene::getVisualizationParameter(PxVisualizationParameter::Enum param) const

@@ -5,6 +5,7 @@
 
 #include <chrono>
 
+#include "BindingHelper.h"
 #include "binding/ActorBinding.h"
 #include "binding/ControllerBinding.h"
 #include "binding/CookingBinding.h"
@@ -34,7 +35,12 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
+    function("PxCreatePhysics", optional_override([](PxU32 version, PxFoundation &foundation,
+                                                    const PxTolerancesScale &scale, bool trackAllocations, PxPvd *pvd) {
+        PxPhysics *physics = PxCreateBasePhysics(version, foundation, scale, trackAllocations, pvd);
+        if (physics && physics->getNbScenes() == 0) PxRegisterHeightFields(*physics);
+        return physics;
+    }), allow_raw_pointers());
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
@@ -49,7 +55,9 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxPhysics>("PxPhysics")
             .function("release", &PxPhysics::release)
             .function("getTolerancesScale", &PxPhysics::getTolerancesScale)
-            .function("createScene", &PxPhysics::createScene, allow_raw_pointers())
+            .function("createScene", optional_override([](PxPhysics &physics, const PxSceneDesc &desc) {
+                          return createSceneWithOwnedDispatcher(physics, desc);
+                      }), allow_raw_pointers())
             .function("createShape",
                       select_overload<PxShape *(const PxGeometry &, const PxMaterial &, bool, PxShapeFlags)>(
                               &PxPhysics::createShape),
@@ -60,7 +68,11 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createFixedJoint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) -> PxFixedJoint * {
+                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
+                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
+                              return nullptr;
+                          }
                           return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
                                                     actor1, PxTransform(localPosition1, localRotation1));
                       }),
@@ -68,7 +80,12 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createRevoluteJoint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                                           const PxVec3 &localPosition1,
+                                           const PxQuat &localRotation1) -> PxRevoluteJoint * {
+                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
+                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
+                              return nullptr;
+                          }
                           return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
                                                        actor1, PxTransform(localPosition1, localRotation1));
                       }),
@@ -76,7 +93,12 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createDistanceJoint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                                           const PxVec3 &localPosition1,
+                                           const PxQuat &localRotation1) -> PxDistanceJoint * {
+                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
+                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
+                              return nullptr;
+                          }
                           return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
                                                        actor1, PxTransform(localPosition1, localRotation1));
                       }),
@@ -84,7 +106,12 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createPrismaticJoint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                                           const PxVec3 &localPosition1,
+                                           const PxQuat &localRotation1) -> PxPrismaticJoint * {
+                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
+                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
+                              return nullptr;
+                          }
                           return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
                                                         actor1, PxTransform(localPosition1, localRotation1));
                       }),
@@ -92,7 +119,11 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createD6Joint",
                       optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
                                            const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
+                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) -> PxD6Joint * {
+                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
+                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
+                              return nullptr;
+                          }
                           return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0), actor1,
                                                  PxTransform(localPosition1, localRotation1));
                       }),

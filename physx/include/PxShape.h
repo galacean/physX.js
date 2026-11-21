@@ -95,7 +95,7 @@ struct PxShapeFlag
 		raised the sdk will reject any attempt to raise the other.  To raise the eTRIGGER_SHAPE flag first 
 		ensure that eSIMULATION_SHAPE flag is already lowered.
 
-		\note Trigger shapes will no longer send notification events for interactions with other trigger shapes.
+		\note Overlaps between trigger shapes follow the scene's pair filtering rules.
 
 		\note Shapes marked as triggers are allowed to participate in scene queries, provided the eSCENE_QUERY_SHAPE flag is set. 
 
@@ -110,7 +110,21 @@ struct PxShapeFlag
 
 		@see PxScene.getRenderBuffer() PxRenderBuffer PxVisualizationParameter
 		*/
-		eVISUALIZATION					= (1<<3)
+		eVISUALIZATION					= (1<<3),
+
+		/**
+		\brief Suppress contact reports when both shapes in the pair have this flag.
+
+		Collision response and trigger reports are independent of this flag.
+		*/
+		eDISABLE_CONTACT_EVENTS			= (1<<4),
+
+		/**
+		\brief Enable contact modification for simulation pairs involving this shape.
+
+		This flag applies to both discrete and CCD contacts. Setting it preserves collision eligibility and sleep state.
+		*/
+		eMODIFY_CONTACTS					= (1<<5)
 	};
 };
 

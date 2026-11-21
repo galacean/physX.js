@@ -135,7 +135,7 @@ public:
 
 				const PxMeshScale& s = c.scale;
 				mass = unscaledMass * s.scale.x * s.scale.y * s.scale.z;
-				centerOfMass = s.rotation.rotate(s.scale.multiply(s.rotation.rotateInv(unscaledCoM)));
+				centerOfMass = s.transform(unscaledCoM);
 				inertiaTensor = scaleInertia(unscaledInertiaTensorCOM, s.rotation, s.scale);
 			}
 			break;

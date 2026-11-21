@@ -503,7 +503,15 @@ PxU32 physx::NpRigidDynamicGetShapes(Scb::Body& body, void* const*& shapes, bool
 
 void NpRigidDynamic::switchToNoSim()
 {
-	getScbBodyFast().switchBodyToNoSim();
+	Scb::Body& body = getScbBodyFast();
+	NpScene* scene = NpActor::getAPIScene(*this);
+	const PxRigidBodyFlags targetFlags = PxRigidBodyFlag::eKINEMATIC | PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES;
+
+	body.switchBodyToNoSim();
+
+	// The kinematic target was cleared. Refit any query bounds built at that pose.
+	if(scene && (body.getFlags() & targetFlags) == targetFlags)
+		updateDynamicSceneQueryShapes(mShapeManager, scene->getSceneQueryManagerFast(), *this);
 }
 
 

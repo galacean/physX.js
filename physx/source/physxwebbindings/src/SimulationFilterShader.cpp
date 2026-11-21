@@ -34,101 +34,59 @@
 #include "PsFoundation.h"
 #include "PsInlineArray.h"
 #include "PsIntrinsics.h"
+#include "PxPhysics.h"
 #include "PxRigidActor.h"
+#include "PxScene.h"
 #include "PxShape.h"
+#include <algorithm>
+#include <vector>
 
 using namespace physx;
 
 namespace {
-#define GROUP_SIZE 32
+constexpr PxU32 GROUP_SIZE = 32;
+constexpr PxU32 LAYER_WORDS = GROUP_SIZE / 2;
 
-struct PxCollisionBitMap {
-    PX_INLINE PxCollisionBitMap() : enable(true) {}
+const PxU64* collisionRules(const void* data, PxU32 size) {
+    return size >= LAYER_WORDS * sizeof(PxU64) ? static_cast<const PxU64*>(data) : nullptr;
+}
 
-    bool operator()() const { return enable; }
-    bool& operator=(const bool& v) {
-        enable = v;
-        return enable;
+std::vector<PxU64> copyRules(const PxScene& scene) {
+    const auto* data = collisionRules(scene.getFilterShaderData(), scene.getFilterShaderDataSize());
+    return data ? std::vector<PxU64>(data, data + scene.getFilterShaderDataSize() / sizeof(PxU64))
+                : std::vector<PxU64>(LAYER_WORDS, ~PxU64(0));
+}
+
+bool layerCollisionEnabled(const PxU64* rules, PxU32 group1, PxU32 group2) {
+    return group1 < GROUP_SIZE && group2 < GROUP_SIZE &&
+           (!rules || (rules[group1 / 2] & (PxU64(1) << (group2 + 32 * (group1 % 2)))) != 0);
+}
+
+PxU64 pairKey(PxU32 first, PxU32 second) {
+    return (PxU64(std::min(first, second)) << 32) | std::max(first, second);
+}
+
+bool pairCollisionEnabled(const void* data, PxU32 size, const PxFilterData& first, const PxFilterData& second) {
+    const PxU32 group1 = first.word0, group2 = second.word0;
+    if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE) return false;
+    const PxU32 bit1 = 1u << group1, bit2 = 1u << group2;
+    if ((first.word3 & bit2) || (second.word3 & bit1)) return false;
+
+    const auto* rules = collisionRules(data, size);
+    if (!(first.word2 & bit2) && !(second.word2 & bit1) && !layerCollisionEnabled(rules, group1, group2)) {
+        return false;
     }
-
-private:
-    bool enable;
-};
-
-PxCollisionBitMap gCollisionTable[GROUP_SIZE][GROUP_SIZE];
-
-FilterOp::Enum gFilterOps[3] = {FilterOp::PX_FILTEROP_AND, FilterOp::PX_FILTEROP_AND, FilterOp::PX_FILTEROP_AND};
-
-GroupsMask gFilterConstants[2];
-
-bool gFilterBool = false;
-
-static void gAND(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(mask0.bits0 & mask1.bits0);
-    results.bits1 = PxU16(mask0.bits1 & mask1.bits1);
-    results.bits2 = PxU16(mask0.bits2 & mask1.bits2);
-    results.bits3 = PxU16(mask0.bits3 & mask1.bits3);
-}
-static void gOR(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(mask0.bits0 | mask1.bits0);
-    results.bits1 = PxU16(mask0.bits1 | mask1.bits1);
-    results.bits2 = PxU16(mask0.bits2 | mask1.bits2);
-    results.bits3 = PxU16(mask0.bits3 | mask1.bits3);
-}
-static void gXOR(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(mask0.bits0 ^ mask1.bits0);
-    results.bits1 = PxU16(mask0.bits1 ^ mask1.bits1);
-    results.bits2 = PxU16(mask0.bits2 ^ mask1.bits2);
-    results.bits3 = PxU16(mask0.bits3 ^ mask1.bits3);
-}
-static void gNAND(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(~(mask0.bits0 & mask1.bits0));
-    results.bits1 = PxU16(~(mask0.bits1 & mask1.bits1));
-    results.bits2 = PxU16(~(mask0.bits2 & mask1.bits2));
-    results.bits3 = PxU16(~(mask0.bits3 & mask1.bits3));
-}
-static void gNOR(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(~(mask0.bits0 | mask1.bits0));
-    results.bits1 = PxU16(~(mask0.bits1 | mask1.bits1));
-    results.bits2 = PxU16(~(mask0.bits2 | mask1.bits2));
-    results.bits3 = PxU16(~(mask0.bits3 | mask1.bits3));
-}
-static void gNXOR(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(~(mask0.bits0 ^ mask1.bits0));
-    results.bits1 = PxU16(~(mask0.bits1 ^ mask1.bits1));
-    results.bits2 = PxU16(~(mask0.bits2 ^ mask1.bits2));
-    results.bits3 = PxU16(~(mask0.bits3 ^ mask1.bits3));
+    if (rules && size > LAYER_WORDS * sizeof(PxU64)) {
+        const auto* pairs = rules + LAYER_WORDS;
+        const auto* end = rules + size / sizeof(PxU64);
+        return !std::binary_search(pairs, end, pairKey(first.word1, second.word1));
+    }
+    return true;
 }
 
-static void gSWAP_AND(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1) {
-    results.bits0 = PxU16(mask0.bits0 & mask1.bits2);
-    results.bits1 = PxU16(mask0.bits1 & mask1.bits3);
-    results.bits2 = PxU16(mask0.bits2 & mask1.bits0);
-    results.bits3 = PxU16(mask0.bits3 & mask1.bits1);
-}
-
-typedef void (*FilterFunction)(GroupsMask& results, const GroupsMask& mask0, const GroupsMask& mask1);
-
-FilterFunction const gTable[] = {gAND, gOR, gXOR, gNAND, gNOR, gNXOR, gSWAP_AND};
-
-static PxFilterData convert(const GroupsMask& mask) {
-    PxFilterData fd;
-
-    fd.word2 = PxU32(mask.bits0 | (mask.bits1 << 16));
-    fd.word3 = PxU32(mask.bits2 | (mask.bits3 << 16));
-
-    return fd;
-}
-
-static GroupsMask convert(const PxFilterData& fd) {
-    GroupsMask mask;
-
-    mask.bits0 = PxU16((fd.word2 & 0xffff));
-    mask.bits1 = PxU16((fd.word2 >> 16));
-    mask.bits2 = PxU16((fd.word3 & 0xffff));
-    mask.bits3 = PxU16((fd.word3 >> 16));
-
-    return mask;
+void writeRules(PxScene& scene, const std::vector<PxU64>& rules) {
+    scene.setFilterShaderData(rules.data(), static_cast<PxU32>(rules.size() * sizeof(PxU64)));
+    PxInvalidateSceneQueryStaticTimestamp(scene);
 }
 
 static bool getFilterData(const PxActor& actor, PxFilterData& fd) {
@@ -138,57 +96,24 @@ static bool getFilterData(const PxActor& actor, PxFilterData& fd) {
         case PxActorType::eRIGID_STATIC:
         case PxActorType::eARTICULATION_LINK: {
             const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
-            PX_CHECK_AND_RETURN_VAL(rActor.getNbShapes() >= 1, "There must be a shape in actor", false);
 
             PxShape* shape = NULL;
-            rActor.getShapes(&shape, 1);
+            if (rActor.getShapes(&shape, 1) == 0 || !shape) {
+                return false;
+            }
 
             fd = shape->getSimulationFilterData();
-        } break;
+            return true;
+        }
 
         case PxActorType::eACTOR_COUNT:
         case PxActorType::eACTOR_FORCE_DWORD:
             break;
     }
 
-    return true;
+    return false;
 }
 
-PX_FORCE_INLINE static void adjustFilterData(bool groupsMask, const PxFilterData& src, PxFilterData& dst) {
-    if (groupsMask) {
-        dst.word2 = src.word2;
-        dst.word3 = src.word3;
-    } else
-        dst.word0 = src.word0;
-}
-
-template <bool TGroupsMask>
-static void setFilterData(PxActor& actor, const PxFilterData& fd) {
-    PxActorType::Enum aType = actor.getType();
-    switch (aType) {
-        case PxActorType::eRIGID_DYNAMIC:
-        case PxActorType::eRIGID_STATIC:
-        case PxActorType::eARTICULATION_LINK: {
-            const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
-
-            PxShape* shape;
-            for (PxU32 i = 0; i < rActor.getNbShapes(); i++) {
-                rActor.getShapes(&shape, 1, i);
-
-                // retrieve current group mask
-                PxFilterData resultFd = shape->getSimulationFilterData();
-
-                adjustFilterData(TGroupsMask, fd, resultFd);
-
-                // set new filter data
-                shape->setSimulationFilterData(resultFd);
-            }
-        } break;
-        case PxActorType::eACTOR_COUNT:
-        case PxActorType::eACTOR_FORCE_DWORD:
-            break;
-    }
-}
 }  // namespace
 
 PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0,
@@ -198,31 +123,9 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
                                             PxPairFlags& pairFlags,
                                             const void* constantBlock,
                                             PxU32 constantBlockSize) {
-    PX_UNUSED(constantBlock);
-    PX_UNUSED(constantBlockSize);
-
-    // Collision Group
-    PxU32 group0 = filterData0.word0;
-    PxU32 group1 = filterData1.word0;
-    if (group0 >= GROUP_SIZE || group1 >= GROUP_SIZE || !gCollisionTable[group0][group1]()) {
+    if (!pairCollisionEnabled(constantBlock, constantBlockSize, filterData0, filterData1)) {
         return PxFilterFlag::eSUPPRESS;
     }
-
-    // Filter function
-    // GroupsMask g0 = convert(filterData0);
-    // GroupsMask g1 = convert(filterData1);
-
-    // GroupsMask g0k0;
-    // gTable[gFilterOps[0]](g0k0, g0, gFilterConstants[0]);
-    // GroupsMask g1k1;
-    // gTable[gFilterOps[1]](g1k1, g1, gFilterConstants[1]);
-    // GroupsMask final;
-    // gTable[gFilterOps[2]](final, g0k0, g1k1);
-
-    // bool r = final.bits0 || final.bits1 || final.bits2 || final.bits3;
-    // if (r != gFilterBool) {
-    //     return PxFilterFlag::eSUPPRESS;
-    // }
 
     // let triggers through
     if (PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1)) {
@@ -231,72 +134,120 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
     }
 
     pairFlags = PxPairFlag::eCONTACT_DEFAULT | PxPairFlag::eNOTIFY_TOUCH_FOUND | PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
-                PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_CONTACT_POINTS | 
+                PxPairFlag::eNOTIFY_TOUCH_LOST | PxPairFlag::eNOTIFY_CONTACT_POINTS | PxPairFlag::ePRE_SOLVER_VELOCITY |
                 PxPairFlag::eDETECT_CCD_CONTACT | PxPairFlag::eNOTIFY_TOUCH_CCD;
 
     return PxFilterFlag::eDEFAULT;
 }
 
-bool physx::getGroupCollisionFlag(const PxU16 group1, const PxU16 group2) {
-    PX_CHECK_AND_RETURN_NULL(group1 < 32 && group2 < 32, "Group must be less than 32");
-
-    return gCollisionTable[group1][group2]();
+void physx::invalidateShapeSweepCache(const PxShape& shape) {
+    const PxRigidActor* actor = shape.getActor();
+    if (actor && actor->getScene()) {
+        PxInvalidateSceneQueryStaticTimestamp(*actor->getScene());
+    }
 }
 
-void physx::setGroupCollisionFlag(const PxU16 group1, const PxU16 group2, const bool enable) {
-    PX_CHECK_AND_RETURN(group1 < 32 && group2 < 32, "Group must be less than 32");
+bool physx::getGroupCollisionFlag(const PxScene& scene, PxU32 group1, PxU32 group2) {
+    return layerCollisionEnabled(collisionRules(scene.getFilterShaderData(), scene.getFilterShaderDataSize()),
+                                 group1, group2);
+}
 
-    gCollisionTable[group1][group2] = enable;
-    gCollisionTable[group2][group1] = enable;
+void physx::setGroupCollisionFlag(PxScene& scene, PxU32 group1, PxU32 group2, bool enable) {
+    if (group1 >= GROUP_SIZE || group2 >= GROUP_SIZE || getGroupCollisionFlag(scene, group1, group2) == enable) {
+        return;
+    }
+    auto rules = copyRules(scene);
+    const PxU64 bit1 = PxU64(1) << (group1 + 32 * (group2 % 2));
+    const PxU64 bit2 = PxU64(1) << (group2 + 32 * (group1 % 2));
+    if (enable) {
+        rules[group1 / 2] |= bit2;
+        rules[group2 / 2] |= bit1;
+    } else {
+        rules[group1 / 2] &= ~bit2;
+        rules[group2 / 2] &= ~bit1;
+    }
+    writeRules(scene, rules);
+    PxMarkSceneFilterPairDirty(scene, group1, group2, false);
+}
+
+bool physx::shouldCollide(const PxScene& scene, const PxFilterData& first, const PxFilterData& second) {
+    return pairCollisionEnabled(scene.getFilterShaderData(), scene.getFilterShaderDataSize(), first, second);
+}
+
+void physx::setPairIgnored(PxScene& scene, PxU32 first, PxU32 second, bool ignored) {
+    auto rules = copyRules(scene);
+    const PxU64 key = pairKey(first, second);
+    const auto pos = std::lower_bound(rules.begin() + LAYER_WORDS, rules.end(), key);
+    const bool found = pos != rules.end() && *pos == key;
+    if (found == ignored) return;
+    if (ignored) rules.insert(pos, key);
+    else rules.erase(pos);
+    writeRules(scene, rules);
+    PxMarkSceneFilterPairDirty(scene, first, second, true);
+}
+
+void physx::removeIgnoredPairs(PxScene& scene, PxU32 shapeId) {
+    if (scene.getFilterShaderDataSize() <= LAYER_WORDS * sizeof(PxU64)) return;
+    auto rules = copyRules(scene);
+    const auto end = std::remove_if(rules.begin() + LAYER_WORDS, rules.end(), [shapeId](PxU64 key) {
+        return static_cast<PxU32>(key >> 32) == shapeId || static_cast<PxU32>(key) == shapeId;
+    });
+    if (end == rules.end()) return;
+    rules.erase(end, rules.end());
+    writeRules(scene, rules);
 }
 
 PxU16 physx::getGroup(const PxActor& actor) {
     PxFilterData fd;
-    getFilterData(actor, fd);
+    if (!getFilterData(actor, fd)) {
+        return 0;
+    }
     return PxU16(fd.word0);
 }
 
-void physx::setGroup(PxActor& actor, const PxU16 collisionGroup) {
-    PX_CHECK_AND_RETURN(collisionGroup < 32, "Collision group must be less than 32");
-    PxFilterData fd(collisionGroup, 0, 0, 0);
-    setFilterData<false>(actor, fd);
+void physx::setGroup(PxActor& actor, const PxU32 collisionGroup) {
+    if (collisionGroup >= GROUP_SIZE) {
+        return;
+    }
+
+    PxActorType::Enum aType = actor.getType();
+    switch (aType) {
+        case PxActorType::eRIGID_DYNAMIC:
+        case PxActorType::eRIGID_STATIC:
+        case PxActorType::eARTICULATION_LINK: {
+            const PxRigidActor& rActor = static_cast<const PxRigidActor&>(actor);
+
+            for (PxU32 i = 0; i < rActor.getNbShapes(); i++) {
+                PxShape* shape = NULL;
+                if (rActor.getShapes(&shape, 1, i) == 1 && shape) {
+                    setShapeGroup(*shape, collisionGroup);
+                }
+            }
+        } break;
+        case PxActorType::eACTOR_COUNT:
+        case PxActorType::eACTOR_FORCE_DWORD:
+            break;
+    }
 }
 
-void physx::getFilterOps(FilterOp::Enum& op0, FilterOp::Enum& op1, FilterOp::Enum& op2) {
-    op0 = gFilterOps[0];
-    op1 = gFilterOps[1];
-    op2 = gFilterOps[2];
+bool physx::setShapeGroup(PxShape& shape, const PxU32 collisionGroup) {
+    // Checked explicitly: PX_CHECK_* compiles away in release builds, and the query filter shifts by this value.
+    if (collisionGroup >= GROUP_SIZE) {
+        return false;
+    }
+    PxFilterData fd = shape.getSimulationFilterData();
+    if (fd.word0 != collisionGroup) {
+        fd.word0 = collisionGroup;
+        shape.setSimulationFilterData(fd);
+        invalidateShapeSweepCache(shape);
+    }
+    return true;
 }
 
-void physx::setFilterOps(const FilterOp::Enum& op0, const FilterOp::Enum& op1, const FilterOp::Enum& op2) {
-    gFilterOps[0] = op0;
-    gFilterOps[1] = op1;
-    gFilterOps[2] = op2;
-}
-
-bool physx::getFilterBool() { return gFilterBool; }
-
-void physx::setFilterBool(const bool enable) { gFilterBool = enable; }
-
-void physx::getFilterConstants(GroupsMask& c0, GroupsMask& c1) {
-    c0 = gFilterConstants[0];
-    c1 = gFilterConstants[1];
-}
-
-void physx::setFilterConstants(const GroupsMask& c0, const GroupsMask& c1) {
-    gFilterConstants[0] = c0;
-    gFilterConstants[1] = c1;
-}
-
-GroupsMask physx::getGroupsMask(const PxActor& actor) {
-    PxFilterData fd;
-    if (getFilterData(actor, fd))
-        return convert(fd);
-    else
-        return GroupsMask();
-}
-
-void physx::setGroupsMask(PxActor& actor, const GroupsMask& mask) {
-    PxFilterData fd = convert(mask);
-    setFilterData<true>(actor, fd);
+void physx::setShapeLayerOverrides(PxShape& shape, PxU32 includeLayers, PxU32 excludeLayers) {
+    PxFilterData data = shape.getSimulationFilterData();
+    data.word2 = includeLayers;
+    data.word3 = excludeLayers;
+    shape.setSimulationFilterData(data);
+    invalidateShapeSweepCache(shape);
 }
