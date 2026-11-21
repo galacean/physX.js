@@ -1,0 +1,23 @@
+physx/source/physxwebbindings/src/BindingHelper.h
+  s_d2c65ec75a2f3e::t_c612eba3044ba1 36-40
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_d2c65ec75a2f3e::t_c612eba3044ba1 18-44,50-51,55,58-65,195
+  s_d2c65ec75a2f3e::t_14333b12c8697b 45-49,52-54,56-57
+  s_d2c65ec75a2f3e::t_3043a32f0fcd9c 183-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "50c89219d74c73f462b2b81de04b5a8a4f47b0f7",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
