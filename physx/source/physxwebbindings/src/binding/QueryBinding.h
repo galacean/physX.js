@@ -133,6 +133,15 @@ class PxSceneQueries {
                                  PxQueryFlag::ePREFILTER | PxQueryFlag::ePOSTFILTER);
     }
 
+    bool queryOverlap(const PxGeometry &geometry, const PxTransform &pose, PxU32 layerMask, bool includeTriggers,
+                      const val &excluded, PxOverlapCallback &result, PxQueryFlags flags = {}) {
+        if (!_scene || !pose.isSane() || !PxGeometryQuery::isValid(geometry)) return false;
+
+        auto filter = makeFilter(layerMask, false, includeTriggers, excluded);
+        const PxQueryFilterData data(flags | PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
+        return _scene->overlap(geometry, pose, result, data, &filter);
+    }
+
 public:
     explicit PxSceneQueries(PxScene *scene) : _scene(scene) {}
 
@@ -186,12 +195,13 @@ public:
 
     val overlap(const PxGeometry &geometry, const PxTransform &pose, PxU32 layerMask, bool includeTriggers, const val &excluded) {
         _shapeIDs.clear();
-        if (_scene && pose.isSane() && PxGeometryQuery::isValid(geometry)) {
-            auto filter = makeFilter(layerMask, false, includeTriggers, excluded);
-            OverlapCollector result(_overlapTouches.data(), kTouchCount, _shapeIDs);
-            const PxQueryFilterData data(PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
-            _scene->overlap(geometry, pose, result, data, &filter);
-        }
+        OverlapCollector result(_overlapTouches.data(), kTouchCount, _shapeIDs);
+        queryOverlap(geometry, pose, layerMask, includeTriggers, excluded, result);
         return val(typed_memory_view(_shapeIDs.size(), _shapeIDs.data()));
+    }
+
+    bool checkOverlap(const PxGeometry &geometry, const PxTransform &pose, PxU32 layerMask, bool includeTriggers, const val &excluded) {
+        PxOverlapBuffer result;
+        return queryOverlap(geometry, pose, layerMask, includeTriggers, excluded, result, PxQueryFlag::eANY_HIT);
     }
 };

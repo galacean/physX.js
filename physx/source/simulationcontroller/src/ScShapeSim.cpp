@@ -253,8 +253,8 @@ void ShapeSim::onFlagChange(PxShapeFlags oldFlags)
 	{
 		if(!oldBp && newBp)
 		{
-			// A.B. if a trigger was removed and inserted within the same frame we need to reinsert
-			if(hasTriggerFlags(newFlags) && getScene().getAABBManager()->isMarkedForRemove(getElementID()))
+			// Reinsert to rebuild interactions removed earlier in the same step.
+			if(getScene().getAABBManager()->isMarkedForRemove(getElementID()))
 			{
 				reinsertBroadPhase();
 			}

@@ -264,7 +264,8 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("raycast", &PxSceneQueries::raycast)
             .function("raycastAll", &PxSceneQueries::raycastAll)
             .function("sweep", &PxSceneQueries::sweep)
-            .function("overlap", &PxSceneQueries::overlap);
+            .function("overlap", &PxSceneQueries::overlap)
+            .function("checkOverlap", &PxSceneQueries::checkOverlap);
 }
 
 namespace emscripten {

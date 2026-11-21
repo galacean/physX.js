@@ -15,13 +15,13 @@
 using namespace physx;
 using namespace emscripten;
 
-inline PxFilterData getControllerFilterData(const PxController &ctrl) {
+inline PxShape *getControllerShape(const PxController &ctrl) {
     PxRigidDynamic *actor = ctrl.getActor();
     PxShape *shape = nullptr;
-    if (actor && actor->getShapes(&shape, 1) == 1 && shape) {
-        return shape->getSimulationFilterData();
+    if (actor) {
+        actor->getShapes(&shape, 1);
     }
-    return PxFilterData();
+    return shape;
 }
 
 using ControllerExcludedIds = shdfnd::InlineArray<PxU32, 8>;
@@ -37,14 +37,7 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
 
     PxQueryHitType::Enum preFilter(const PxFilterData &, const PxShape *shape,
                                    const PxRigidActor *, PxHitFlags &) override {
-        // Skip triggers and non-simulation shapes; do not filter by isSceneQueryEnabled so solid shapes
-        // with isSceneQuery = false still block CharacterController movement.
-        if (!shape || !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE)) {
-            return PxQueryHitType::eNONE;
-        }
-        return accepts(shape->getSimulationFilterData())
-                   ? PxQueryHitType::eBLOCK
-                   : PxQueryHitType::eNONE;
+        return accepts(shape) ? PxQueryHitType::eBLOCK : PxQueryHitType::eNONE;
     }
 
     PxQueryHitType::Enum postFilter(const PxFilterData &, const PxQueryHit &) override {
@@ -52,11 +45,15 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
     }
 
     bool filter(const PxController &, const PxController &target) override {
-        return accepts(getControllerFilterData(target));
+        return accepts(getControllerShape(target));
     }
 
 private:
-    bool accepts(const PxFilterData &target) const {
+    bool accepts(const PxShape *shape) const {
+        // Solid shapes block movement independently of scene-query participation.
+        if (!shape || !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE)) return false;
+
+        const PxFilterData target = shape->getSimulationFilterData();
         return target.word0 < 32 && (layerMask & (1u << target.word0)) &&
                std::find(excluded.begin(), excluded.end(), target.word1) == excluded.end() &&
                physx::shouldCollide(scene, controllerData, target);
@@ -74,8 +71,7 @@ public:
 
     void onControllerHit(const PxControllersHit &hit) override {
         if (!collecting) return;
-        PxShape *shape = nullptr;
-        if (hit.other->getActor()->getShapes(&shape, 1) == 1) {
+        if (const PxShape *shape = getControllerShape(*hit.other)) {
             append(hit, shape);
         }
     }
@@ -124,7 +120,9 @@ inline PxU32 moveController(PxController &controller, const PxVec3 &disp, PxF32 
         for (PxU32 i = 0; i < count; ++i) excluded[i] = (*excludedIds)[i].as<PxU32>();
     }
 
-    ControllerLayerFilter filter(*controller.getScene(), getControllerFilterData(controller), layerMask, excluded);
+    const PxShape *shape = getControllerShape(controller);
+    ControllerLayerFilter filter(*controller.getScene(), shape ? shape->getSimulationFilterData() : PxFilterData(),
+                                 layerMask, excluded);
     PxControllerFilters filters(nullptr, &filter, &filter);
     filters.mReuseGeometryCache = layerMask == ~PxU32(0) && excluded.size() == 0;
     report.values[0] = 1;
@@ -278,9 +276,7 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           }
                       }))  // ✅
             .function("setMaterial", optional_override([](PxController &ctrl, PxMaterial &material) {
-                          PxRigidDynamic *actor = ctrl.getActor();
-                          PxShape *shape = nullptr;
-                          if (actor && actor->getShapes(&shape, 1) == 1 && shape) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
                               PxMaterial *materialPtr = &material;
                               shape->setMaterials(&materialPtr, 1);
                           }
@@ -342,23 +338,23 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           }
                       }))  // ✅
             .function("setUUID", optional_override([](PxController &ctrl, uint32_t uuid) {
-                          PxRigidDynamic *actor = ctrl.getActor();
-                          PxShape *shape = nullptr;
-                          if (actor && actor->getShapes(&shape, 1) == 1 && shape) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
                               setUUID(*shape, uuid);
                           }
                       }))  // ✅
             .function("setLayerOverrides", optional_override([](PxController &ctrl, PxU32 include, PxU32 exclude) {
-                          PxShape *shape = nullptr;
-                          if (ctrl.getActor()->getShapes(&shape, 1) == 1) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
                               physx::setShapeLayerOverrides(*shape, include, exclude);
                           }
                       }))
             .function("setSceneQueryEnabled", optional_override([](PxController &ctrl, bool enabled) {
-                          PxRigidDynamic *actor = ctrl.getActor();
-                          PxShape *shape = nullptr;
-                          if (actor && actor->getShapes(&shape, 1) == 1 && shape) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
                               setSceneQueryEnabled(*shape, enabled);
+                          }
+                      }))
+            .function("setDetectCollisions", optional_override([](PxController &ctrl, bool enabled) {
+                          if (PxShape *shape = getControllerShape(ctrl)) {
+                              shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, enabled);
                           }
                       }))
             .function("getActor", &PxController::getActor, allow_raw_pointers());  // ✅
