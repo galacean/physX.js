@@ -588,6 +588,14 @@ namespace Sc
 		PX_FORCE_INLINE SqBoundsManager&			getSqBoundsManager()					const	{ return *mSqBoundsManager; }
 
 		PX_FORCE_INLINE	PxReal						getVisualizationScale()					const	{ return mVisualizationScale;			}  // This is actually redundant but makes checks whether debug visualization is enabled faster
+		PX_FORCE_INLINE bool						hasContactVisualization()				const
+		{
+			return mVisualizationScale != 0.0f &&
+				(getVisualizationParameter(PxVisualizationParameter::eCONTACT_POINT) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_NORMAL) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_ERROR) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_FORCE));
+		}
 
 		PX_FORCE_INLINE BodyCore* const*			getSleepBodiesArray(PxU32& count)				{ count = mSleepBodies.size(); return mSleepBodies.getEntries(); }
 
@@ -858,8 +866,6 @@ namespace Sc
 					PxU32						mDominanceBitMatrix[PX_MAX_DOMINANCE_GROUP];
 
 					PxReal						mVisualizationScale;  // Redundant but makes checks whether debug visualization is enabled faster
-
-					bool						mVisualizationParameterChanged;
 
 					// statics:
 					PxU32						mNbRigidStatics;

@@ -724,6 +724,11 @@ void PxSetSceneContactEventsEnabled(PxScene& scene, bool enabled)
 	static_cast<NpScene&>(scene).getScene().getScScene().setContactEventsEnabled(enabled);
 }
 
+bool PxIsSceneSimulationIdle(const PxScene& scene)
+{
+	return static_cast<const NpScene&>(scene).getSimulationStage() == Sc::SimulationStage::eCOMPLETE;
+}
+
 void PxInvalidateSceneQueryStaticTimestamp(PxScene& scene)
 {
 	static_cast<NpScene&>(scene).getSceneQueryManagerFast().get(Sq::PruningIndex::eSTATIC).invalidateTimestamp();

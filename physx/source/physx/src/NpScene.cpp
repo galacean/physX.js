@@ -2494,6 +2494,8 @@ bool NpScene::setVisualizationParameter(PxVisualizationParameter::Enum param, Px
 	else
 	{
 		mScene.setVisualizationParameter(param, value);
+		if (param == PxVisualizationParameter::eSCALE && value == 0.0f && getSimulationStage() == Sc::SimulationStage::eCOMPLETE)
+			mRenderBuffer.clear();
 		return true;
 	}
 }

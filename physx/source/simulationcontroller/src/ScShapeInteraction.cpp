@@ -796,12 +796,8 @@ PX_FORCE_INLINE void Sc::ShapeInteraction::updateFlags(const Sc::Scene& scene, c
 	setFlag(CONTACTS_RESPONSE_DISABLED, !enabled);
 
 	// Check if contact points needed
-	setFlag(CONTACTS_COLLECT_POINTS, (	(pairFlags & PxPairFlag::eNOTIFY_CONTACT_POINTS) ||
-										(pairFlags & PxPairFlag::eMODIFY_CONTACTS) || 
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_POINT) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_NORMAL) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_ERROR) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_FORCE)) );
+	setFlag(CONTACTS_COLLECT_POINTS, (pairFlags & PxU32(PxPairFlag::eNOTIFY_CONTACT_POINTS | PxPairFlag::eMODIFY_CONTACTS)) ||
+		scene.hasContactVisualization());
 }
 
 void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)

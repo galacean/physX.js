@@ -3,7 +3,9 @@
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
+#include <cstddef>
 
+#include "../BindingHelper.h"
 #include "../SimulationFilterShader.h"
 #include "ContactModificationBinding.h"
 #include "PxPhysicsAPI.h"
@@ -11,6 +13,35 @@
 
 using namespace physx;
 using namespace emscripten;
+
+inline bool setDebugVisualization(PxScene &scene, double flags, PxReal scale) {
+    using Parameter = PxVisualizationParameter;
+    constexpr Parameter::Enum categories[] = {
+        Parameter::eCOLLISION_SHAPES, Parameter::eCOLLISION_AABBS, Parameter::eCONTACT_POINT,
+        Parameter::eCONTACT_NORMAL, Parameter::eJOINT_LOCAL_FRAMES, Parameter::eJOINT_LIMITS
+    };
+    constexpr PxU32 count = sizeof(categories) / sizeof(categories[0]);
+    PxU32 mask;
+    if (!tryParseIntRange(flags, 0, (1u << count) - 1, mask) || !PxIsFinite(scale) ||
+        scale < 0.0f || !PxIsSceneSimulationIdle(scene)) {
+        return false;
+    }
+    for (PxU32 i = 0; i < count; ++i) {
+        scene.setVisualizationParameter(categories[i], (mask & (1u << i)) ? 1.0f : 0.0f);
+    }
+    return scene.setVisualizationParameter(Parameter::eSCALE, mask ? scale : 0.0f);
+}
+
+inline val getDebugLines(PxScene &scene) {
+    // Each endpoint is stored as three Float32 coordinates followed by an ARGB word.
+    static_assert(sizeof(PxDebugLine) == 32 && offsetof(PxDebugLine, color0) == 12 &&
+                  offsetof(PxDebugLine, pos1) == 16 && offsetof(PxDebugLine, color1) == 28);
+    if (!PxIsSceneSimulationIdle(scene)) return val::null();
+    const auto &buffer = scene.getRenderBuffer();
+    const size_t bytes = buffer.getNbLines() * sizeof(PxDebugLine);
+    if (!bytes) return val::null();
+    return val(typed_memory_view(bytes, reinterpret_cast<const PxU8 *>(buffer.getLines())));
+}
 
 struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallback> {
     EMSCRIPTEN_WRAPPER(explicit PxSimulationEventCallbackWrapper)
@@ -269,6 +300,8 @@ EMSCRIPTEN_BINDINGS(physx_scene) {
             .function("setContactEventEnabled", &PxSetSceneContactEventsEnabled)
             .function("setContactModificationCallback", &PxContactModificationCallback::setSceneCallback,
                       allow_raw_pointers())
+            .function("setDebugVisualization", &setDebugVisualization)
+            .function("getDebugLines", &getDebugLines)
             .function("getGroupCollisionFlag", &getGroupCollisionFlagBinding)
             .function("setGroupCollisionFlag", &setGroupCollisionFlagBinding)
             .function("setPairIgnored", &physx::setPairIgnored)

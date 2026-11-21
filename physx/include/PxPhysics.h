@@ -725,6 +725,7 @@ PX_C_EXPORT PX_PHYSX_CORE_API physx::PxPhysics& PX_CALL_CONV PxGetPhysics();
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxMarkSceneFilterPairDirty(physx::PxScene& scene, physx::PxU32 first, physx::PxU32 second, bool shapeIds);
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxInvalidateSceneQueryStaticTimestamp(physx::PxScene& scene);
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetSceneContactEventsEnabled(physx::PxScene& scene, bool enabled);
+PX_C_EXPORT PX_PHYSX_CORE_API bool PX_CALL_CONV PxIsSceneSimulationIdle(const physx::PxScene& scene);
 
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetSceneOwnedCpuDispatcher(
 	physx::PxScene& scene,

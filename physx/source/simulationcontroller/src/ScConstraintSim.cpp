@@ -488,7 +488,8 @@ PX_INLINE Sc::BodySim* Sc::ConstraintSim::getConstraintGroupBody()
 
 void Sc::ConstraintSim::visualize(PxRenderBuffer& output)
 {
-	if(!(getCore().getFlags() & PxConstraintFlag::eVISUALIZATION))
+	const PxConstraintVisualize visualize = mCore.getVisualize();
+	if(!visualize || !(mCore.getFlags() & PxConstraintFlag::eVISUALIZATION))
 		return;
 
 	PxsRigidBody* b0 = mLowLevelConstraint.body0;
@@ -510,7 +511,7 @@ void Sc::ConstraintSim::visualize(PxRenderBuffer& output)
 	if(limitScale!=0.0f)
 		flags |= PxConstraintVisualizationFlag::eLIMITS;
 
-	mCore.getVisualize()(viz, mLowLevelConstraint.constantBlock, t0, t1, flags);
+	visualize(viz, mLowLevelConstraint.constantBlock, t0, t1, flags);
 }
 
 void Sc::ConstraintSim::setConstantsLL(void* addr)
