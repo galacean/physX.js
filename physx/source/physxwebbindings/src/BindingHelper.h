@@ -42,6 +42,10 @@ inline bool isSceneQueryEnabled(const physx::PxShape& shape) {
     return shape.getQueryFilterData().word0 == 0;
 }
 
+inline void setShapeContactEventsEnabled(physx::PxShape& shape, bool enabled) {
+    shape.setFlag(physx::PxShapeFlag::eDISABLE_CONTACT_EVENTS, !enabled);
+}
+
 inline void setSceneQueryEnabled(physx::PxShape& shape, bool enabled) {
     // Native query flags must stay enabled for character-controller collision queries
     physx::PxFilterData data = shape.getQueryFilterData();

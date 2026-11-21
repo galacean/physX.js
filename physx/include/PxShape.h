@@ -110,7 +110,14 @@ struct PxShapeFlag
 
 		@see PxScene.getRenderBuffer() PxRenderBuffer PxVisualizationParameter
 		*/
-		eVISUALIZATION					= (1<<3)
+		eVISUALIZATION					= (1<<3),
+
+		/**
+		\brief Suppress contact reports when both shapes in the pair have this flag.
+
+		Collision response and trigger reports are independent of this flag.
+		*/
+		eDISABLE_CONTACT_EVENTS			= (1<<4)
 	};
 };
 

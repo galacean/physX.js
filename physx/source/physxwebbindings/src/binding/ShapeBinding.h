@@ -4,6 +4,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
+#include "../BindingHelper.h"
 #include "../SimulationFilterShader.h"
 #include "PxPhysicsAPI.h"
 #include "QueryBinding.h"
@@ -22,6 +23,14 @@ static PxTransform shapeWorldPose(const PxShape &shape) {
         return target * local;
     }
     return actor->getGlobalPose() * local;
+}
+
+static void setShapeFlags(PxShape &shape, PxShapeFlags previous, PxShapeFlags flags) {
+    shape.setFlags(flags);
+    const PxShapeFlags changed = previous ^ shape.getFlags();
+    if (changed & (PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE)) {
+        physx::invalidateShapeSweepCache(shape);
+    }
 }
 
 EMSCRIPTEN_BINDINGS(physx_shape) {
@@ -88,13 +97,15 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
             // .function("getFlags", &PxShape::getFlags) 
             // .function("setFlag", &PxShape::setFlag)
             .function("setFlags", optional_override([](PxShape &shape, PxShapeFlags flags) {
-                          const PxShapeFlags prev = shape.getFlags();
-                          shape.setFlags(flags);
-                          const PxShapeFlags changed = prev ^ shape.getFlags();
-                          if (changed & (PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE)) {
-                              physx::invalidateShapeSweepCache(shape);
-                          }
+                          setShapeFlags(shape, shape.getFlags(), flags);
                       })) // ✅
+            .function("setIsTrigger", optional_override([](PxShape &shape, bool value) {
+                          const PxShapeFlags previous = shape.getFlags();
+                          PxShapeFlags flags = previous & ~(PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE);
+                          flags |= value ? PxShapeFlag::eTRIGGER_SHAPE : PxShapeFlag::eSIMULATION_SHAPE;
+                          setShapeFlags(shape, previous, flags);
+                      }))
+            .function("setContactEventsEnabled", &setShapeContactEventsEnabled)
             .function("setSceneQueryEnabled", optional_override([](PxShape &shape, bool enabled) {
                           setSceneQueryEnabled(shape, enabled);
                       }))

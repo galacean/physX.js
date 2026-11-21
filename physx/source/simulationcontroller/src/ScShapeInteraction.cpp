@@ -595,7 +595,9 @@ void Sc::ShapeInteraction::processUserNotificationAsync(PxU32 contactEvent, PxU1
 
 void Sc::ShapeInteraction::processUserNotification(PxU32 contactEvent, PxU16 infoFlags, bool touchLost, const PxU32 ccdPass, const bool useCurrentTransform, PxsContactManagerOutputIterator& outputs)
 {
-	if (!getScene().getContactEventsEnabled())
+	if (!getScene().getContactEventsEnabled() ||
+		(getShape0().getCore().getFlags().isSet(PxShapeFlag::eDISABLE_CONTACT_EVENTS) &&
+		 getShape1().getCore().getFlags().isSet(PxShapeFlag::eDISABLE_CONTACT_EVENTS)))
 		return;
 
 	processUserNotificationSync();
