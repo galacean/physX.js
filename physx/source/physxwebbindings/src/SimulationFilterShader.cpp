@@ -46,7 +46,6 @@ using namespace physx;
 namespace {
 constexpr PxU32 GROUP_SIZE = 32;
 constexpr PxU32 LAYER_WORDS = GROUP_SIZE / 2;
-PxU32 gCollisionFilterRevision = 1;
 
 const PxU64* collisionRules(const void* data, PxU32 size) {
     return size >= LAYER_WORDS * sizeof(PxU64) ? static_cast<const PxU64*>(data) : nullptr;
@@ -87,7 +86,7 @@ bool pairCollisionEnabled(const void* data, PxU32 size, const PxFilterData& firs
 
 void writeRules(PxScene& scene, const std::vector<PxU64>& rules) {
     scene.setFilterShaderData(rules.data(), static_cast<PxU32>(rules.size() * sizeof(PxU64)));
-    bumpCollisionFilterRevision();
+    PxInvalidateSceneQueryStaticTimestamp(scene);
 }
 
 static bool getFilterData(const PxActor& actor, PxFilterData& fd) {
@@ -141,11 +140,10 @@ PxFilterFlags physx::simulationFilterShader(PxFilterObjectAttributes attributes0
     return PxFilterFlag::eDEFAULT;
 }
 
-PxU32 physx::getCollisionFilterRevision() { return gCollisionFilterRevision; }
-
-void physx::bumpCollisionFilterRevision() {
-    if (++gCollisionFilterRevision == 0) {
-        gCollisionFilterRevision = 1;
+void physx::invalidateShapeSweepCache(const PxShape& shape) {
+    const PxRigidActor* actor = shape.getActor();
+    if (actor && actor->getScene()) {
+        PxInvalidateSceneQueryStaticTimestamp(*actor->getScene());
     }
 }
 
@@ -238,11 +236,10 @@ bool physx::setShapeGroup(PxShape& shape, const PxU32 collisionGroup) {
         return false;
     }
     PxFilterData fd = shape.getSimulationFilterData();
-    const bool changed = fd.word0 != collisionGroup;
-    fd.word0 = collisionGroup;
-    shape.setSimulationFilterData(fd);
-    if (changed) {
-        bumpCollisionFilterRevision();
+    if (fd.word0 != collisionGroup) {
+        fd.word0 = collisionGroup;
+        shape.setSimulationFilterData(fd);
+        invalidateShapeSweepCache(shape);
     }
     return true;
 }
@@ -252,5 +249,5 @@ void physx::setShapeLayerOverrides(PxShape& shape, PxU32 includeLayers, PxU32 ex
     data.word2 = includeLayers;
     data.word3 = excludeLayers;
     shape.setSimulationFilterData(data);
-    bumpCollisionFilterRevision();
+    invalidateShapeSweepCache(shape);
 }

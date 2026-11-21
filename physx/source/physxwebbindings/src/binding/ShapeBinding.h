@@ -83,7 +83,7 @@ EMSCRIPTEN_BINDINGS(physx_shape) {
                           shape.setFlags(flags);
                           const PxShapeFlags changed = prev ^ shape.getFlags();
                           if (changed & (PxShapeFlag::eSIMULATION_SHAPE | PxShapeFlag::eTRIGGER_SHAPE)) {
-                              physx::bumpCollisionFilterRevision();
+                              physx::invalidateShapeSweepCache(shape);
                           }
                       })) // ✅
             .function("setSceneQueryEnabled", optional_override([](PxShape &shape, bool enabled) {

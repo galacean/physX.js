@@ -167,11 +167,13 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                               PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
                           }
                       }))
-            .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
-                          return PxRigidBodyExt::getVelocityAtPos(body, pos);
+            .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos, const val &out) {
+                          const PxVec3 velocity = PxRigidBodyExt::getVelocityAtPos(body, pos);
+                          out.call<void>("set", velocity.x, velocity.y, velocity.z);
                       }))
-            .function("getLocalVelocityAtLocalPos", optional_override([](PxRigidBody &body, const PxVec3 &pos) {
-                          return PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
+            .function("getLocalVelocityAtLocalPos", optional_override([](PxRigidBody &body, const PxVec3 &pos, const val &out) {
+                          const PxVec3 velocity = PxRigidBodyExt::getLocalVelocityAtLocalPos(body, pos);
+                          out.call<void>("set", velocity.x, velocity.y, velocity.z);
                       }))
             .function("setRigidBodyFlag", &PxRigidBody::setRigidBodyFlag) // ✅
             .function("getRigidBodyFlags", optional_override([](PxRigidBody &body, PxRigidBodyFlag::Enum flag) {

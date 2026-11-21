@@ -209,13 +209,6 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               !PxIsFinite(elapsedTime) || elapsedTime < 0.0f) {
                               return 0;
                           }
-                          const PxU32 filterRevision = physx::getCollisionFilterRevision();
-                          const uintptr_t cachedRevision = reinterpret_cast<uintptr_t>(controller.getUserData());
-                          if (cachedRevision != static_cast<uintptr_t>(filterRevision)) {
-                              controller.invalidateCache();
-                              controller.setUserData(
-                                      reinterpret_cast<void *>(static_cast<uintptr_t>(filterRevision)));
-                          }
                           ControllerLayerFilter filter(*controller.getScene(), getControllerFilterData(controller));
                           PxControllerFilters filters(nullptr, &filter, &filter);
                           report.collecting = collectHits;

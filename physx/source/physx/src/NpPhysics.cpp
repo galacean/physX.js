@@ -719,6 +719,11 @@ void PxMarkSceneFilterPairDirty(PxScene& scene, PxU32 first, PxU32 second, bool 
 	static_cast<NpScene&>(scene).getScene().getScScene().markFilterPairDirty(first, second, shapeIds);
 }
 
+void PxInvalidateSceneQueryStaticTimestamp(PxScene& scene)
+{
+	static_cast<NpScene&>(scene).getSceneQueryManagerFast().get(Sq::PruningIndex::eSTATIC).invalidateTimestamp();
+}
+
 void PxSetSceneOwnedCpuDispatcher(PxScene& scene, PxCpuDispatcher* dispatcher, void (*releaser)(PxCpuDispatcher*))
 {
 	static_cast<NpScene&>(scene).setOwnedCpuDispatcher(dispatcher, releaser);

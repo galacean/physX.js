@@ -56,8 +56,7 @@ bool shouldCollide(const PxScene& scene, const PxFilterData& first, const PxFilt
 void setPairIgnored(PxScene& scene, PxU32 first, PxU32 second, bool ignored);
 void removeIgnoredPairs(PxScene& scene, PxU32 shapeId);
 
-PxU32 getCollisionFilterRevision();
-void bumpCollisionFilterRevision();
+void invalidateShapeSweepCache(const PxShape& shape);
 
 } // namespace physx
 #endif
