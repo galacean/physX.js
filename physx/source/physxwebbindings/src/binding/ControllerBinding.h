@@ -12,6 +12,10 @@
 #include "PsInlineArray.h"
 #include "PxPhysicsAPI.h"
 
+namespace physx {
+    void setControllerSlopeWalls(PxController &controller, PxF32 wallHeight, PxF32 jumpHeight);
+}
+
 using namespace physx;
 using namespace emscripten;
 
@@ -22,6 +26,10 @@ inline PxShape *getControllerShape(const PxController &ctrl) {
         actor->getShapes(&shape, 1);
     }
     return shape;
+}
+
+inline bool isSolidControllerShape(const PxShape *shape) {
+    return shape && (shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE);
 }
 
 using ControllerExcludedIds = shdfnd::InlineArray<PxU32, 8>;
@@ -51,12 +59,25 @@ struct ControllerLayerFilter : PxQueryFilterCallback, PxControllerFilterCallback
 private:
     bool accepts(const PxShape *shape) const {
         // Solid shapes block movement independently of scene-query participation.
-        if (!shape || !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE)) return false;
+        if (!isSolidControllerShape(shape)) return false;
 
         const PxFilterData target = shape->getSimulationFilterData();
         return target.word0 < 32 && (layerMask & (1u << target.word0)) &&
                std::find(excluded.begin(), excluded.end(), target.word1) == excluded.end() &&
                physx::shouldCollide(scene, controllerData, target);
+    }
+};
+
+struct ControllerInteractionFilter : PxControllerFilterCallback {
+    const PxScene &scene;
+
+    explicit ControllerInteractionFilter(const PxScene &owner) : scene(owner) {}
+
+    bool filter(const PxController &first, const PxController &second) override {
+        const PxShape *firstShape = getControllerShape(first);
+        const PxShape *secondShape = getControllerShape(second);
+        return isSolidControllerShape(firstShape) && isSolidControllerShape(secondShape) &&
+               physx::shouldCollide(scene, firstShape->getSimulationFilterData(), secondShape->getSimulationFilterData());
     }
 };
 
@@ -189,8 +210,15 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                           return manager.createController(desc);
                       }), allow_raw_pointers())  // ✅
             .function("setOverlapRecoveryModule", &PxControllerManager::setOverlapRecoveryModule)
+            .function("setPreciseSweeps", &PxControllerManager::setPreciseSweeps)
+            .function("setPreventVerticalSlidingAgainstCeiling", &PxControllerManager::setPreventVerticalSlidingAgainstCeiling)
+            .function("computeInteractions", optional_override([](PxControllerManager &manager, PxF32 elapsedTime) {
+                          if (PxIsFinite(elapsedTime) && elapsedTime >= 0.0f) {
+                              ControllerInteractionFilter filter(manager.getScene());
+                              manager.computeInteractions(elapsedTime, &filter);
+                          }
+                      }))
             .function("release", &PxControllerManager::release);  // ✅
-            // .function("computeInteractions", &PxControllerManager::computeInteractions, allow_raw_pointers())  // ✅
             // .function("setTessellation", &PxControllerManager::setTessellation)                                // ✅
             // .function("shiftOrigin", &PxControllerManager::shiftOrigin);              // ✅
     /** PhysXCharacterControllerDesc ✅ */
@@ -357,6 +385,7 @@ EMSCRIPTEN_BINDINGS(physx_controller) {
                               shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, enabled);
                           }
                       }))
+            .function("setSlopeWalls", &physx::setControllerSlopeWalls)
             .function("getActor", &PxController::getActor, allow_raw_pointers());  // ✅
 }
 
