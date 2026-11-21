@@ -1,0 +1,24 @@
+physx/source/compiler/cmake/emscripten/PhysXWebBindings.cmake
+  s_d2c65ec75a2f3e::t_2aea6925ec2ea1 60-61,63,65,67,70-88
+  s_d2c65ec75a2f3e::t_f1f5510407bc0c 89
+build.sh
+  s_d2c65ec75a2f3e::t_2aea6925ec2ea1 8-9,36-37,41-45,47
+README.md
+  s_d2c65ec75a2f3e::t_3d88dc9387a008 27-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c30002c9ad33cd749391f52503cb41671be8a208",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
