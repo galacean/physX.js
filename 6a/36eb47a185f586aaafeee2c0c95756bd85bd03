@@ -1,0 +1,21 @@
+physx/source/physxwebbindings/src/binding/ShapeBinding.h
+  s_d2c65ec75a2f3e::t_402821170054f7 72-87
+physx/source/physxwebbindings/src/binding/JointBinding.h
+  s_d2c65ec75a2f3e::t_f1ff5b5caf73fb 102-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6a36eb47a185f586aaafeee2c0c95756bd85bd03",
+  "prompts": {},
+  "sessions": {
+    "s_d2c65ec75a2f3e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f2c1-96c2-77f3-a2dd-e76c94ab0c6d",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
