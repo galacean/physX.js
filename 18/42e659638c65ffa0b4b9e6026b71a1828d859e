@@ -1,0 +1,20 @@
+physx/source/physxextensions/src/ExtRigidBodyExt.cpp
+  s_c56f03ac26fead::t_30e692597c43b2 433-436
+  s_c56f03ac26fead::t_c7bd1d94c3f581 438-444
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1842e659638c65ffa0b4b9e6026b71a1828d859e",
+  "prompts": {},
+  "sessions": {
+    "s_c56f03ac26fead": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a210dd-80de-7c01-82da-497ab348ed48",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
