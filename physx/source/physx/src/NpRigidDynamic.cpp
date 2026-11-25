@@ -171,6 +171,14 @@ void NpRigidDynamic::setCMassLocalPose(const PxTransform& pose)
 	const PxTransform p = pose.getNormalized();
 
 	const PxTransform oldBody2Actor = getScbBodyFast().getBody2Actor();
+	if(p.p == oldBody2Actor.p)
+	{
+		const PxQuat& oldRotation = oldBody2Actor.q;
+		const PxQuat reference = p.q.dot(oldRotation) < 0.0f ? -oldRotation : oldRotation;
+		// Rebuilding the body-to-world pose for the same mass frame accumulates roundoff.
+		if(pose.q == reference || p.q == reference)
+			return;
+	}
 
 	NpRigidDynamicT::setCMassLocalPoseInternal(p);
 
