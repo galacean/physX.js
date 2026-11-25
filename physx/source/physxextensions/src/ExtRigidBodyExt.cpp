@@ -352,8 +352,16 @@ static bool setMassAndUpdateInertia(bool multipleMassOrDensity, PxRigidBody& bod
 		success = false;
 	}
 
-	PX_ASSERT(orient.isFinite());
-	PX_ASSERT(diagTensor.isFinite());
+	// A degenerate volume can produce a non-finite mass frame. Use the empty body's defaults.
+	if(!com.isFinite() || !orient.isSane() || !diagTensor.isFinite())
+	{
+		if(lockCom && !massLocalPose->isFinite())
+			return false;
+		com = lockCom ? *massLocalPose : PxVec3(0);
+		orient = PxQuat(PxIdentity);
+		diagTensor = PxVec3(1.0f);
+		success = false;
+	}
 
 	body.setMass(massOut);
 	body.setMassSpaceInertiaTensor(diagTensor);
