@@ -1,0 +1,27 @@
+physx/source/physxwebbindings/src/binding/ActorBinding.h
+  s_3754ebc6b108f2::t_c578a4babb5ba0 18-24,203,205,207,209,211,213
+README.md
+  s_3754ebc6b108f2::t_5d412598c6e256 50-51
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_3754ebc6b108f2::t_c578a4babb5ba0 230,233
+physx/source/physxwebbindings/src/PxWebBindings.cpp
+  s_3754ebc6b108f2::t_c578a4babb5ba0 22-32,79-83
+physx/source/physxwebbindings/src/binding/QueryBinding.h
+  s_3754ebc6b108f2::t_c578a4babb5ba0 103,185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d9cf8235c563e2f660016c0288df0cf81ecf7245",
+  "prompts": {},
+  "sessions": {
+    "s_3754ebc6b108f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a218cd-a576-7eb3-aadd-5c308d16914c",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
