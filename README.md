@@ -47,11 +47,8 @@ outputs in `wasm_build/`.
 
 ## TypeScript Bindings
 
-Oasis use PhysX as the physics backend. If you want to use PhysX in your own project, you can refer
-to [@oasis-engine/physics-physx](https://github.com/oasis-engine/engine/tree/main/packages/physics-physx)
-Our bindings is designed for multi-backend, you can
-refer [interface](https://github.com/oasis-engine/engine/tree/main/packages/design/src/physics)
-and [docs](https://github.com/oasis-engine/engine/wiki/Physical-system-design) to learn more infos.
+Galacean uses these bindings in [@galacean/engine-physics-physx](https://github.com/galacean/engine/tree/dev/2.0/packages/physics-physx).
+The [physics interfaces](https://github.com/galacean/engine/tree/dev/2.0/packages/design/src/physics) describe the backend contract.
 
 ## Detailed explanation
 

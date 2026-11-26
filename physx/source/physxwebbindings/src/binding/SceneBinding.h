@@ -227,10 +227,10 @@ public:
         }
     }
 
-    uintptr_t read() {
+    uintptr_t read(PxU32 first) {
         constexpr PxU32 stride = 8;
         poses.resize(actors.size() * stride);
-        for (size_t i = 0; i < actors.size(); ++i) {
+        for (size_t i = first; i < actors.size(); ++i) {
             const PxRigidDynamic &actor = *actors[i];
             const PxTransform pose = actor.getGlobalPose();
             float *out = poses.data() + i * stride;

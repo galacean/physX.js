@@ -15,6 +15,13 @@ inline bool canApplyDynamicForce(const PxRigidBody &body) {
            !(body.getActorFlags() & PxActorFlag::eDISABLE_SIMULATION);
 }
 
+template <auto Apply, PxForceMode::Enum Mode>
+static void applyForceAtPosition(PxRigidBody &body, const PxVec3 &force, const PxVec3 &position) {
+    if (force.isFinite() && position.isFinite() && canApplyDynamicForce(body)) {
+        Apply(body, force, position, Mode, true);
+    }
+}
+
 inline bool addExplosionForce(PxRigidBody &body, PxReal strength, const PxVec3 &origin, double radius,
                               PxReal upwardOffset, PxForceMode::Enum mode) {
     if (!canApplyDynamicForce(body) || !origin.isFinite() || !PxIsFinite(strength) ||
@@ -193,41 +200,17 @@ EMSCRIPTEN_BINDINGS(physx_actor) {
                           if (worldTorque.isFinite()) body.addTorque(worldTorque, mode, true);
                       }))
             .function("addExplosionForce", &addExplosionForce)
-            .function("addForceAtPos", optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addForceAtPos(body, force, pos, PxForceMode::eFORCE, true);
-                          }
-                      }))
+            .function("addForceAtPos", &applyForceAtPosition<PxRigidBodyExt::addForceAtPos, PxForceMode::eFORCE>)
             .function("addForceAtLocalPos",
-                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-                          }
-                      }))
+                      &applyForceAtPosition<PxRigidBodyExt::addForceAtLocalPos, PxForceMode::eFORCE>)
             .function("addLocalForceAtLocalPos",
-                      optional_override([](PxRigidBody &body, const PxVec3 &force, const PxVec3 &pos) {
-                          if (force.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addLocalForceAtLocalPos(body, force, pos, PxForceMode::eFORCE, true);
-                          }
-                      }))
+                      &applyForceAtPosition<PxRigidBodyExt::addLocalForceAtLocalPos, PxForceMode::eFORCE>)
             .function("addImpulseAtPos",
-                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addForceAtPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                          }
-                      }))
+                      &applyForceAtPosition<PxRigidBodyExt::addForceAtPos, PxForceMode::eIMPULSE>)
             .function("addImpulseAtLocalPos",
-                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                          }
-                      }))
+                      &applyForceAtPosition<PxRigidBodyExt::addForceAtLocalPos, PxForceMode::eIMPULSE>)
             .function("addLocalImpulseAtLocalPos",
-                      optional_override([](PxRigidBody &body, const PxVec3 &impulse, const PxVec3 &pos) {
-                          if (impulse.isFinite() && pos.isFinite() && canApplyDynamicForce(body)) {
-                              PxRigidBodyExt::addLocalForceAtLocalPos(body, impulse, pos, PxForceMode::eIMPULSE, true);
-                          }
-                      }))
+                      &applyForceAtPosition<PxRigidBodyExt::addLocalForceAtLocalPos, PxForceMode::eIMPULSE>)
             .function("getVelocityAtPos", optional_override([](PxRigidBody &body, const PxVec3 &pos, const val &out) {
                           const PxVec3 velocity = PxRigidBodyExt::getVelocityAtPos(body, pos);
                           out.call<void>("set", velocity.x, velocity.y, velocity.z);

@@ -19,6 +19,17 @@
 using namespace physx;
 using namespace emscripten;
 
+template <auto Create>
+static auto createJoint(PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &position0, const PxQuat &rotation0,
+                        PxRigidActor *actor1, const PxVec3 &position1, const PxQuat &rotation1)
+    -> decltype(Create(physics, actor0, PxTransform(position0, rotation0), actor1, PxTransform(position1, rotation1))) {
+    if (!areValidJointActors(actor0, actor1) || !position0.isFinite() || !rotation0.isSane() ||
+        !position1.isFinite() || !rotation1.isSane()) {
+        return nullptr;
+    }
+    return Create(physics, actor0, PxTransform(position0, rotation0), actor1, PxTransform(position1, rotation1));
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
     constant("PX_PHYSICS_VERSION", PX_PHYSICS_VERSION);
@@ -65,69 +76,11 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createMaterial", &PxPhysics::createMaterial, allow_raw_pointers())
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
             .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers())
-            .function("createFixedJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) -> PxFixedJoint * {
-                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
-                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
-                              return nullptr;
-                          }
-                          return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                    actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createRevoluteJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1,
-                                           const PxQuat &localRotation1) -> PxRevoluteJoint * {
-                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
-                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
-                              return nullptr;
-                          }
-                          return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                       actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createDistanceJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1,
-                                           const PxQuat &localRotation1) -> PxDistanceJoint * {
-                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
-                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
-                              return nullptr;
-                          }
-                          return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                       actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createPrismaticJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1,
-                                           const PxQuat &localRotation1) -> PxPrismaticJoint * {
-                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
-                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
-                              return nullptr;
-                          }
-                          return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                        actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createD6Joint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) -> PxD6Joint * {
-                          if (!areValidJointActors(actor0, actor1) || !localPosition0.isFinite() ||
-                              !localRotation0.isSane() || !localPosition1.isFinite() || !localRotation1.isSane()) {
-                              return nullptr;
-                          }
-                          return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0), actor1,
-                                                 PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers());  // ✅
+            .function("createFixedJoint", &createJoint<PxFixedJointCreate>, allow_raw_pointers())
+            .function("createRevoluteJoint", &createJoint<PxRevoluteJointCreate>, allow_raw_pointers())
+            .function("createDistanceJoint", &createJoint<PxDistanceJointCreate>, allow_raw_pointers())
+            .function("createPrismaticJoint", &createJoint<PxPrismaticJointCreate>, allow_raw_pointers())
+            .function("createD6Joint", &createJoint<PxD6JointCreate>, allow_raw_pointers());
 
     class_<PxErrorCallback>("PxErrorCallback");
     class_<PxDefaultErrorCallback, base<PxErrorCallback>>("PxDefaultErrorCallback").constructor<>();

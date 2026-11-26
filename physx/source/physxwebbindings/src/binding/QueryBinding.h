@@ -100,7 +100,7 @@ class PxSceneQueries {
     static constexpr PxU32 kTouchCount = 256;
     PxScene *_scene;
     std::array<PxRaycastHit, kTouchCount> _raycastTouches;
-    std::array<PxSweepHit, kTouchCount> _sweepTouches;
+    std::vector<PxSweepHit> _sweepTouches;
     std::array<PxOverlapHit, kTouchCount> _overlapTouches;
     std::vector<SceneQueryHit> _hits;
     std::vector<PxU32> _shapeIDs;
@@ -182,6 +182,7 @@ public:
             const PxHitFlags flags = castHitFlags(hitBackfaces);
             const PxQueryFilterData data = castFilterData();
             if (all) {
+                _sweepTouches.resize(kTouchCount);
                 CastCollector<PxSweepHit> result(_sweepTouches.data(), kTouchCount, _hits);
                 _scene->sweep(geometry, pose, normalized, distance, result, flags, data, &filter);
             } else {

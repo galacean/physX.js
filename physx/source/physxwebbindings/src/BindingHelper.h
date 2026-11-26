@@ -29,10 +29,6 @@ inline uint32_t getUUID(const physx::PxShape* shape) {
     return shape ? shape->getSimulationFilterData().word1 : 0u;
 }
 
-inline uint32_t getUUID(const physx::PxRigidActor* actor) {
-    return actor ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(actor->userData)) : 0u;
-}
-
 inline bool isVolumeGeometry(physx::PxGeometryType::Enum type) {
     using Type = physx::PxGeometryType;
     return type == Type::eBOX || type == Type::eSPHERE || type == Type::eCAPSULE || type == Type::eCONVEXMESH;
