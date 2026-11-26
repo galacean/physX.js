@@ -72,15 +72,7 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             return;
         }
 
-        // One extra-data item set covers the shape pairs starting at its reported index.
-        PxContactPairExtraDataIterator extra(header.extraDataStream, header.extraDataStreamSize);
-        bool hasNext = extra.nextItemSet();
-        const PxContactPairVelocity *preSolver = nullptr;
         for (PxU32 i = 0; i < nbPairs; i++) {
-            while (hasNext && extra.contactPairIndex == i) {
-                preSolver = extra.preSolverVelocity;
-                hasNext = extra.nextItemSet();
-            }
             const PxContactPair &cp = pairs[i];
             if (cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_0) ||
                 cp.flags.isSet(PxContactPairFlag::eREMOVED_SHAPE_1) || !cp.shapes[0] || !cp.shapes[1]) {
@@ -88,10 +80,7 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
             }
             contactPoints.resize(cp.contactCount);
             const PxU32 count = cp.extractContacts(contactPoints.data(), cp.contactCount);
-            const PxU32 velocityOffset = count * 10;
-            // PhysX 4.1 clears the swept solver's velocity snapshot before it builds the report.
-            const bool hasVelocity = preSolver && !cp.events.isSet(PxPairFlag::eNOTIFY_TOUCH_CCD);
-            contactValues.resize(velocityOffset + (hasVelocity ? 3 : 0));
+            contactValues.resize(count * 10);
             for (PxU32 j = 0; j < count; ++j) {
                 const PxContactPairPoint &point = contactPoints[j];
                 float *out = contactValues.data() + j * 10;
@@ -99,12 +88,6 @@ struct PxSimulationEventCallbackWrapper : public wrapper<PxSimulationEventCallba
                 out[3] = point.normal.x; out[4] = point.normal.y; out[5] = point.normal.z;
                 out[6] = point.impulse.x; out[7] = point.impulse.y; out[8] = point.impulse.z;
                 out[9] = point.separation;
-            }
-            if (hasVelocity) {
-                const PxVec3 velocity = preSolver->linearVelocity[1] - preSolver->linearVelocity[0];
-                contactValues[velocityOffset] = velocity.x;
-                contactValues[velocityOffset + 1] = velocity.y;
-                contactValues[velocityOffset + 2] = velocity.z;
             }
             const PxU32 shape0ID = getUUID(cp.shapes[0]);
             const PxU32 shape1ID = getUUID(cp.shapes[1]);
