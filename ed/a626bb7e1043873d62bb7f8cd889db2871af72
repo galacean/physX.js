@@ -1,0 +1,19 @@
+physx/source/physxwebbindings/src/binding/SceneBinding.h
+  s_3754ebc6b108f2::t_c1d122284781f8 7,234-271,273-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "eda626bb7e1043873d62bb7f8cd889db2871af72",
+  "prompts": {},
+  "sessions": {
+    "s_3754ebc6b108f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a218cd-a576-7eb3-aadd-5c308d16914c",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "luzhuang <wz84888@antgroup.com>"
+    }
+  }
+}
