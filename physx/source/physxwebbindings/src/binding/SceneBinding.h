@@ -4,6 +4,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <cstddef>
+#include <vector>
 
 #include "../BindingHelper.h"
 #include "../SimulationFilterShader.h"
@@ -230,7 +231,50 @@ inline void setGroupBinding(PxActor *actor, double collisionGroup) {
     physx::setGroup(*actor, group);
 }
 
+// Slots follow the Engine's parent-first Rigidbody writeback order.
+class SceneBodyPoses {
+public:
+    void setActor(PxU32 index, PxRigidDynamic *actor) {
+        if (!actor) {
+            actors.pop_back();
+        } else if (index == actors.size()) {
+            actors.push_back(actor);
+        } else {
+            actors[index] = actor;
+        }
+    }
+
+    uintptr_t read() {
+        constexpr PxU32 stride = 8;
+        poses.resize(actors.size() * stride);
+        for (size_t i = 0; i < actors.size(); ++i) {
+            const PxRigidDynamic &actor = *actors[i];
+            const PxTransform pose = actor.getGlobalPose();
+            float *out = poses.data() + i * stride;
+            out[0] = pose.p.x;
+            out[1] = pose.p.y;
+            out[2] = pose.p.z;
+            out[3] = pose.q.x;
+            out[4] = pose.q.y;
+            out[5] = pose.q.z;
+            out[6] = pose.q.w;
+            out[7] = actor.isSleeping() ? 1.0f : 0.0f;
+        }
+        // JavaScript reads the current HEAPF32 rather than allocating a view per step.
+        return reinterpret_cast<uintptr_t>(poses.data());
+    }
+
+private:
+    std::vector<PxRigidDynamic *> actors;
+    std::vector<float> poses;
+};
+
 EMSCRIPTEN_BINDINGS(physx_scene) {
+    class_<SceneBodyPoses>("SceneBodyPoses")
+            .constructor<>()
+            .function("setActor", &SceneBodyPoses::setActor, allow_raw_pointers())
+            .function("read", &SceneBodyPoses::read);
+
     function("getDefaultSceneDesc", &getDefaultSceneDesc, allow_raw_pointers()); // ✅
     // function("PxDefaultSimulationFilterShader", &PxDefaultSimulationFilterShader, allow_raw_pointers());
 
