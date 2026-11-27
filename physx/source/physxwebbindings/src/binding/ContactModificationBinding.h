@@ -7,10 +7,10 @@
 EM_JS_DEPS(contactModificationBindings, "$UTF8ToString,$Emval");
 EM_JS(void, invokeContactModification, (emscripten::EM_VAL callback), {
     try {
-        Emval.toValue(callback)();
+        Function.prototype.call.call(Emval.toValue(callback), null);
     } catch (error) {
-        // With zero physics workers, the native task unwinds before the microtask runs.
-        queueMicrotask(() => { throw error; });
+        // Zero physics workers let the native task finish before the host reports the error.
+        setTimeout(() => { throw error; }, 0);
     }
 });
 
