@@ -595,6 +595,11 @@ void Sc::ShapeInteraction::processUserNotificationAsync(PxU32 contactEvent, PxU1
 
 void Sc::ShapeInteraction::processUserNotification(PxU32 contactEvent, PxU16 infoFlags, bool touchLost, const PxU32 ccdPass, const bool useCurrentTransform, PxsContactManagerOutputIterator& outputs)
 {
+	if (!getScene().getContactEventsEnabled() ||
+		(getShape0().getCore().getFlags().isSet(PxShapeFlag::eDISABLE_CONTACT_EVENTS) &&
+		 getShape1().getCore().getFlags().isSet(PxShapeFlag::eDISABLE_CONTACT_EVENTS)))
+		return;
+
 	processUserNotificationSync();
 	processUserNotificationAsync(contactEvent, infoFlags, touchLost, ccdPass, useCurrentTransform, outputs);
 }
@@ -791,12 +796,8 @@ PX_FORCE_INLINE void Sc::ShapeInteraction::updateFlags(const Sc::Scene& scene, c
 	setFlag(CONTACTS_RESPONSE_DISABLED, !enabled);
 
 	// Check if contact points needed
-	setFlag(CONTACTS_COLLECT_POINTS, (	(pairFlags & PxPairFlag::eNOTIFY_CONTACT_POINTS) ||
-										(pairFlags & PxPairFlag::eMODIFY_CONTACTS) || 
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_POINT) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_NORMAL) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_ERROR) ||
-										scene.getVisualizationParameter(PxVisualizationParameter::eCONTACT_FORCE)) );
+	setFlag(CONTACTS_COLLECT_POINTS, (pairFlags & PxU32(PxPairFlag::eNOTIFY_CONTACT_POINTS | PxPairFlag::eMODIFY_CONTACTS)) ||
+		scene.hasContactVisualization());
 }
 
 void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
@@ -832,7 +833,10 @@ void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
 	}
 
 	const PxU32 newContactState = getManagerContactState();
-	const bool recreateManager = (oldContactState != newContactState);
+	// Refiltering has already written pairFlags. Compare the new contact layout with the live manager.
+	const bool recreateManager = (oldContactState != newContactState) ||
+		((dirtyFlags & InteractionDirtyFlag::eFILTER_STATE) && mManager &&
+			((mManager->isChangeable() != 0) != ((pairFlags & PxPairFlag::eMODIFY_CONTACTS) != 0)));
 
 	// No use in updating manager properties if the manager is going to be re-created or does not exist yet
 	if((!recreateManager) && (mManager != 0))

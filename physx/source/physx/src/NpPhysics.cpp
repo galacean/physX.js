@@ -714,6 +714,31 @@ PxPhysics& PxGetPhysics()
 	return NpPhysics::getInstance();
 }
 
+void PxMarkSceneFilterPairDirty(PxScene& scene, PxU32 first, PxU32 second, bool shapeIds)
+{
+	static_cast<NpScene&>(scene).getScene().getScScene().markFilterPairDirty(first, second, shapeIds);
+}
+
+void PxSetSceneContactEventsEnabled(PxScene& scene, bool enabled)
+{
+	static_cast<NpScene&>(scene).getScene().getScScene().setContactEventsEnabled(enabled);
+}
+
+bool PxIsSceneSimulationIdle(const PxScene& scene)
+{
+	return static_cast<const NpScene&>(scene).getSimulationStage() == Sc::SimulationStage::eCOMPLETE;
+}
+
+void PxInvalidateSceneQueryStaticTimestamp(PxScene& scene)
+{
+	static_cast<NpScene&>(scene).getSceneQueryManagerFast().get(Sq::PruningIndex::eSTATIC).invalidateTimestamp();
+}
+
+void PxSetSceneOwnedCpuDispatcher(PxScene& scene, PxCpuDispatcher* dispatcher, void (*releaser)(PxCpuDispatcher*))
+{
+	static_cast<NpScene&>(scene).setOwnedCpuDispatcher(dispatcher, releaser);
+}
+
 PxPhysics* PxCreateBasePhysics(PxU32 version, PxFoundation& foundation, const PxTolerancesScale& scale, bool trackOutstandingAllocations, PxPvd* pvd)
 {
 	return NpPhysics::createInstance(version, foundation, scale, trackOutstandingAllocations, static_cast<pvdsdk::PsPvd*>(pvd));

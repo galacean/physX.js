@@ -24,10 +24,12 @@ BUILD_DEBUG=1 ./build.sh
 ```
 
 Build outputs:
-- `physx.release.js` / `physx.release.wasm` — standard release build
-- `physx.release.simd.js` / `physx.release.simd.wasm` — SIMD-optimized release build
-- `physx.debug.js` / `physx.debug.wasm` — debug build with PVD support (requires `BUILD_DEBUG=1`)
-- `physx.debug.simd.js` / `physx.debug.simd.wasm` — SIMD debug build (requires `BUILD_DEBUG=1`)
+- `physx.release.{js,mjs,wasm}` — standard release build
+- `physx.release.simd.{js,mjs,wasm}` — SIMD-optimized release build
+- `physx.debug.{js,mjs,wasm}` — debug build with PVD support (requires `BUILD_DEBUG=1`)
+- `physx.debug.simd.{js,mjs,wasm}` — SIMD debug build (requires `BUILD_DEBUG=1`)
+
+For each variant, the classic `.js` loader and the `.mjs` default factory use the same `.wasm` file.
 
 ## Development
 
@@ -45,11 +47,8 @@ outputs in `wasm_build/`.
 
 ## TypeScript Bindings
 
-Oasis use PhysX as the physics backend. If you want to use PhysX in your own project, you can refer
-to [@oasis-engine/physics-physx](https://github.com/oasis-engine/engine/tree/main/packages/physics-physx)
-Our bindings is designed for multi-backend, you can
-refer [interface](https://github.com/oasis-engine/engine/tree/main/packages/design/src/physics)
-and [docs](https://github.com/oasis-engine/engine/wiki/Physical-system-design) to learn more infos.
+Galacean uses these bindings in [@galacean/engine-physics-physx](https://github.com/galacean/engine/tree/dev/2.0/packages/physics-physx).
+The [physics interfaces](https://github.com/galacean/engine/tree/dev/2.0/packages/design/src/physics) describe the backend contract.
 
 ## Detailed explanation
 

@@ -5,8 +5,8 @@ set -e
 unset PX_ENABLE_SIMD
 
 # Build PhysX WebBindings:
-# Release: physx.release.js/wasm + physx.release.simd.js/wasm
-# Debug (BUILD_DEBUG=1): physx.debug.js/wasm + physx.debug.simd.js/wasm (with PVD support)
+# Each build produces classic JS and ESM loaders for the same WASM.
+# BUILD_DEBUG=1 also builds debug variants with PVD support.
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT_DIR="$ROOT_DIR/wasm_build"
@@ -33,24 +33,18 @@ copy_output() {
   local src_name="physx.${build_type}"
   local dst_name="physx.${build_type}${simd}"
 
-  if [ -f "$bin_dir/${src_name}.js" ]; then
-    cp "$bin_dir/${src_name}.js" "$OUT_DIR/${dst_name}.js"
-    if [ -n "$simd" ]; then
-      sed -i '' "s/${src_name}.wasm/${dst_name}.wasm/g" "$OUT_DIR/${dst_name}.js"
-    fi
-    echo "📦 已生成 JS：$OUT_DIR/${dst_name}.js"
-  else
-    echo "❌ 未找到输出 $bin_dir/${src_name}.js"
+  if ! cmp -s "$bin_dir/${src_name}.wasm" "$bin_dir/module/${src_name}.wasm"; then
+    echo "❌ classic 与 ESM 的 WASM 产物不一致：${src_name}${simd}"
     exit 1
   fi
 
-  if [ -f "$bin_dir/${src_name}.wasm" ]; then
-    cp "$bin_dir/${src_name}.wasm" "$OUT_DIR/${dst_name}.wasm"
-    echo "📦 已生成 WASM：$OUT_DIR/${dst_name}.wasm"
-  else
-    echo "❌ 未找到 WASM 输出 $bin_dir/${src_name}.wasm"
-    exit 1
+  cp "$bin_dir/${src_name}.js" "$OUT_DIR/${dst_name}.js"
+  cp "$bin_dir/module/${src_name}.mjs" "$OUT_DIR/${dst_name}.mjs"
+  cp "$bin_dir/${src_name}.wasm" "$OUT_DIR/${dst_name}.wasm"
+  if [ -n "$simd" ]; then
+    sed -i '' "s/${src_name}.wasm/${dst_name}.wasm/g" "$OUT_DIR/${dst_name}.js" "$OUT_DIR/${dst_name}.mjs"
   fi
+  echo "📦 已生成 ${dst_name}.{js,mjs,wasm}：$OUT_DIR"
 }
 
 # ==================== Non-SIMD ====================

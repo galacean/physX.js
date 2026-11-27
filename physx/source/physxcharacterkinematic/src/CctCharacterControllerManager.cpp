@@ -31,9 +31,8 @@
 #include "CctBoxController.h"
 #include "CctCapsuleController.h"
 #include "CctObstacleContext.h"
-#include "GuDistanceSegmentSegment.h"
-#include "GuDistanceSegmentBox.h"
-#include "PsUtilities.h"
+#include "geometry/PxGeometryHelpers.h"
+#include "geometry/PxGeometryQuery.h"
 #include "PsMathUtils.h"
 #include "PxRigidDynamic.h"
 #include "PxScene.h"
@@ -399,291 +398,97 @@ void CharacterControllerManager::shiftOrigin(const PxVec3& shift)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool computeMTD(PxVec3& mtd, PxF32& depth, const PxVec3& e0, const PxVec3& c0, const PxMat33& r0, const PxVec3& e1, const PxVec3& c1, const PxMat33& r1)
+static PxGeometryHolder controllerGeometry(const Controller& controller)
 {
-	// Translation, in parent frame
-	const PxVec3 v = c1 - c0;
-	// Translation, in A's frame
-	const PxVec3 T(v.dot(r0[0]), v.dot(r0[1]), v.dot(r0[2]));
-
-	// B's basis with respect to A's local frame
-	PxReal R[3][3];
-	PxReal FR[3][3];
-	PxReal ra, rb, t, d;
-
-	PxReal overlap[15];
-
-	// Calculate rotation matrix
-	for(PxU32 i=0;i<3;i++)
+	if(controller.mType == PxControllerShapeType::eBOX)
 	{
-		for(PxU32 k=0;k<3;k++)
-		{
-			R[i][k] = r0[i].dot(r1[k]);
-			FR[i][k] = 1e-6f + PxAbs(R[i][k]);	// Precompute fabs matrix
-		}
+		const BoxController& box = static_cast<const BoxController&>(controller);
+		return PxGeometryHolder(PxBoxGeometry(box.getHalfHeight(), box.getHalfSideExtent(), box.getHalfForwardExtent()));
 	}
 
-	// A's basis vectors
-	for(PxU32 i=0;i<3;i++)
-	{
-		ra = e0[i];
-		rb = e1[0]*FR[i][0] + e1[1]*FR[i][1] + e1[2]*FR[i][2];
-		t = PxAbs(T[i]);
-
-		d = ra + rb - t;
-		if(d<0.0f)
-			return false;
-
-		overlap[i] = d;
-	}
-
-	// B's basis vectors
-	for(PxU32 k=0;k<3;k++)
-	{
-		ra = e0[0]*FR[0][k] + e0[1]*FR[1][k] + e0[2]*FR[2][k];
-		rb = e1[k];
-		t = PxAbs(T[0]*R[0][k] + T[1]*R[1][k] + T[2]*R[2][k]);
-
-		d = ra + rb - t;
-		if(d<0.0f)
-			return false;
-
-		overlap[k+3] = d;
-	}
-
-	// PT: edge-edge tests are skipped, by design
-
-	PxU32 minIndex=0;
-	PxReal minD = overlap[0];
-	for(PxU32 i=1;i<6;i++)
-	{
-		if(overlap[i]<minD)
-		{
-			minD = overlap[i];
-			minIndex = i;
-		}
-	}
-
-	depth = minD;
-
-	switch(minIndex)
-	{
-		case 0:		mtd = r0.column0;	break;
-		case 1:		mtd = r0.column1;	break;
-		case 2:		mtd = r0.column2;	break;
-		case 3:		mtd = r1.column0;	break;
-		case 4:		mtd = r1.column1;	break;
-		case 5:		mtd = r1.column2;	break;
-		default:	PX_ASSERT(0);		break;
-	};
-	return true;
+	const CapsuleController& capsule = static_cast<const CapsuleController&>(controller);
+	return PxGeometryHolder(PxCapsuleGeometry(capsule.getRadius(), capsule.getHeight()*0.5f));
 }
 
-static PxVec3 fixDir(const PxVec3& dir, const PxVec3& up)
+static PxVec3 planarDirection(const PxVec3& direction, const PxVec3& centerDifference, const PxVec3& up)
 {
-	PxVec3 normalCompo, tangentCompo;
-	Ps::decomposeVector(normalCompo, tangentCompo, dir, up);
-	return tangentCompo.getNormalized();
+	const PxVec3 tangent = up.cross(direction).cross(up);
+	if(!Ps::isAlmostZero(tangent))
+		return tangent.getNormalized();
+
+	// A near-vertical penetration normal cannot give a reliable direction in the movement plane.
+	return up.cross(centerDifference).cross(up).getNormalized();
 }
 
-static void InteractionCharacterCharacter(Controller* entity0, Controller* entity1, PxF32 elapsedTime)
+static void resolveControllerOverlap(Controller& first, Controller& second, PxF32 elapsedTime)
 {
-	PX_ASSERT(entity0);
-	PX_ASSERT(entity1);
-
-	PxF32 overlap=0.0f;
-	PxVec3 dir(0.0f);
-
-	if(entity0->mType>entity1->mType)
-		Ps::swap(entity0, entity1);
-
-	if(entity0->mType==PxControllerShapeType::eCAPSULE && entity1->mType==PxControllerShapeType::eCAPSULE)
+	const PxGeometryHolder firstGeometry = controllerGeometry(first);
+	const PxGeometryHolder secondGeometry = controllerGeometry(second);
+	// Subtract the extended positions before converting to Float32.
+	const PxTransform firstPose(PxVec3(0.0f), first.mUserParams.mQuatFromUp);
+	const PxTransform secondPose(second.mPosition - first.mPosition, second.mUserParams.mQuatFromUp);
+	PxVec3 direction;
+	PxF32 depth;
+	if(PxGeometryQuery::computePenetration(direction, depth, firstGeometry.any(), firstPose, secondGeometry.any(), secondPose))
 	{
-		CapsuleController* cc0 = static_cast<CapsuleController*>(entity0);
-		CapsuleController* cc1 = static_cast<CapsuleController*>(entity1);
-
-		PxExtendedCapsule capsule0;
-		cc0->getCapsule(capsule0);
-
-		PxExtendedCapsule capsule1;
-		cc1->getCapsule(capsule1);
-
-		const PxF32 r = capsule0.radius + capsule1.radius;
-
-		const PxVec3 p00 = toVec3(capsule0.p0);
-		const PxVec3 p01 = toVec3(capsule0.p1);
-		const PxVec3 p10 = toVec3(capsule1.p0);
-		const PxVec3 p11 = toVec3(capsule1.p1);
-
-		PxF32 s,t;
-		const PxF32 d = sqrtf(Gu::distanceSegmentSegmentSquared(p00, p01 - p00, p10, p11 - p10, &s, &t));
-		if(d<r)
-		{
-			const PxVec3 center0 = s * p00 + (1.0f - s) * p01;
-			const PxVec3 center1 = t * p10 + (1.0f - t) * p11;
-			const PxVec3 up = entity0->mCctModule.mUserParams.mUpDirection;
-			dir = fixDir(center0 - center1, up);
-			overlap = r - d;
-		}
-	}
-	else if(entity0->mType==PxControllerShapeType::eBOX && entity1->mType==PxControllerShapeType::eCAPSULE)
-	{
-		BoxController* cc0 = static_cast<BoxController*>(entity0);
-		CapsuleController* cc1 = static_cast<CapsuleController*>(entity1);
-
-		PxExtendedBox obb;
-		cc0->getOBB(obb);
-
-		PxExtendedCapsule capsule;
-		cc1->getCapsule(capsule);
-		const PxVec3 p0 = toVec3(capsule.p0);
-		const PxVec3 p1 = toVec3(capsule.p1);
-
-		PxF32 t;
-		PxVec3 p;
-		const PxMat33 M(obb.rot);
-		const PxVec3 boxCenter = toVec3(obb.center);
-		const PxF32 d = sqrtf(Gu::distanceSegmentBoxSquared(p0, p1, boxCenter, obb.extents, M, &t, &p));
-		if(d<capsule.radius)
-		{
-//			const PxVec3 center0 = M.transform(p) + boxCenter;
-//			const PxVec3 center1 = t * p0 + (1.0f - t) * p1;
-			const PxVec3 center0 = boxCenter;
-			const PxVec3 center1 = (p0 + p1)*0.5f;
-			const PxVec3 up = entity0->mCctModule.mUserParams.mUpDirection;
-			dir = fixDir(center0 - center1, up);
-			overlap = capsule.radius - d;
-		}
-	}
-	else
-	{
-		PX_ASSERT(entity0->mType==PxControllerShapeType::eBOX);
-		PX_ASSERT(entity1->mType==PxControllerShapeType::eBOX);
-		BoxController* cc0 = static_cast<BoxController*>(entity0);
-		BoxController* cc1 = static_cast<BoxController*>(entity1);
-
-		PxExtendedBox obb0;
-		cc0->getOBB(obb0);
-
-		PxExtendedBox obb1;
-		cc1->getOBB(obb1);
-
-		PxVec3 mtd;
-		PxF32 depth;
-		if(computeMTD(	mtd, depth,
-						obb0.extents, toVec3(obb0.center), PxMat33(obb0.rot),
-						obb1.extents, toVec3(obb1.center), PxMat33(obb1.rot)))
-		{
-			const PxVec3 center0 = toVec3(obb0.center);
-			const PxVec3 center1 = toVec3(obb1.center);
-			const PxVec3 witness = center0 - center1;
-			if(mtd.dot(witness)<0.0f)
-				dir = -mtd;
-			else
-				dir = mtd;
-			const PxVec3 up = entity0->mCctModule.mUserParams.mUpDirection;
-			dir = fixDir(dir, up);
-			overlap = depth;
-		}
-	}
-
-	if(overlap!=0.0f)
-	{
-		// We want to limit this to some reasonable amount, to avoid obvious "popping".
-		const PxF32 maxOverlap = gMaxOverlapRecover * elapsedTime;
-		if(overlap>maxOverlap)
-			overlap=maxOverlap;
-
-		const PxVec3 sep = dir * overlap * 0.5f;
-		entity0->mOverlapRecover += sep;
-		entity1->mOverlapRecover -= sep;
+		const PxF32 distance = PxMin(depth, gMaxOverlapRecover*elapsedTime)*0.5f;
+		const PxVec3 centerDifference = -secondPose.p;
+		first.mOverlapRecover += planarDirection(direction, centerDifference, first.mUserParams.mUpDirection)*distance;
+		second.mOverlapRecover -= planarDirection(direction, centerDifference, second.mUserParams.mUpDirection)*distance;
 	}
 }
 
-// PT: TODO: this is the very old version, revisit with newer one
-static void completeBoxPruning(const PxBounds3* bounds, PxU32 nb, Ps::Array<PxU32>& pairs)
+template <typename Callback>
+static void forEachOverlappingBounds(const PxBounds3* bounds, PxU32 nb, const Callback& callback)
 {
-	if(!nb)
-		return;
+	float* minima = reinterpret_cast<float*>(PX_ALLOC_TEMP(sizeof(float)*nb, "forEachOverlappingBounds"));
+	for(PxU32 i=0; i<nb; i++)
+		minima[i] = bounds[i].minimum.x;
 
-	pairs.clear();
-
-	float* PosList = reinterpret_cast<float*>(PX_ALLOC_TEMP(sizeof(float)*nb, "completeBoxPruning"));
-
-	for(PxU32 i=0;i<nb;i++)
-		PosList[i] = bounds[i].minimum.x;
-
-	/*static*/ Cm::RadixSortBuffered RS;	// Static for coherence
-	const PxU32* Sorted = RS.Sort(PosList, nb).GetRanks();
-
-	const PxU32* const LastSorted = &Sorted[nb];
-	const PxU32* RunningAddress = Sorted;
-	PxU32 Index0, Index1;
-	while(RunningAddress<LastSorted && Sorted<LastSorted)
+	Cm::RadixSortBuffered sorter;
+	const PxU32* sorted = sorter.Sort(minima, nb).GetRanks();
+	for(PxU32 i=0; i<nb; i++)
 	{
-		Index0 = *Sorted++;
-
-		while(RunningAddress<LastSorted && PosList[*RunningAddress++]<PosList[Index0]);
-
-		const PxU32* RunningAddress2 = RunningAddress;
-
-		while(RunningAddress2<LastSorted && PosList[Index1 = *RunningAddress2++]<=bounds[Index0].maximum.x)
+		const PxU32 first = sorted[i];
+		for(PxU32 j=i+1; j<nb && minima[sorted[j]]<=bounds[first].maximum.x; j++)
 		{
-			if(Index0!=Index1)
-			{
-				if(bounds[Index0].intersects(bounds[Index1]))
-				{
-					pairs.pushBack(Index0);
-					pairs.pushBack(Index1);
-				}
-			}
+			const PxU32 second = sorted[j];
+			if(bounds[first].intersects(bounds[second]))
+				callback(first, second);
 		}
 	}
 
-	PX_FREE(PosList);
+	PX_FREE(minima);
 }
 
 void CharacterControllerManager::computeInteractions(PxF32 elapsedTime, PxControllerFilterCallback* cctFilterCb)
 {
-	PxU32 nbControllers = mControllers.size();
-	Controller** controllers = mControllers.begin();
-
-	PxBounds3* boxes = reinterpret_cast<PxBounds3*>(PX_ALLOC_TEMP(sizeof(PxBounds3)*nbControllers, "CharacterControllerManager::computeInteractions"));	// PT: TODO: get rid of alloc
-	PxBounds3* runningBoxes = boxes;
-
-	while(nbControllers--)
+	const PxU32 nbControllers = mControllers.size();
+	if(nbControllers < 2 || elapsedTime == 0.0f)
 	{
-		Controller* current = *controllers++;
-
-		PxExtendedBounds3 extBox;
-		current->getWorldBox(extBox);
-
-		*runningBoxes++ = PxBounds3(toVec3(extBox.minimum), toVec3(extBox.maximum));	// ### LOSS OF ACCURACY
+		for(PxU32 i=0; i<nbControllers; i++)
+			mControllers[i]->mOverlapRecover = PxVec3(0.0f);
+		return;
 	}
 
-	//
-
-	const PxU32 nbEntities = PxU32(runningBoxes - boxes);
-
-	Ps::Array<PxU32> pairs;	// PT: TODO: get rid of alloc
-	completeBoxPruning(boxes, nbEntities, pairs);
-
-	PxU32 nbPairs = pairs.size()>>1;
-	const PxU32* indices = pairs.begin();
-	while(nbPairs--)
+	PxBounds3* boxes = reinterpret_cast<PxBounds3*>(PX_ALLOC_TEMP(sizeof(PxBounds3)*nbControllers, "CharacterControllerManager::computeInteractions"));
+	for(PxU32 i=0; i<nbControllers; i++)
 	{
-		const PxU32 index0 = *indices++;
-		const PxU32 index1 = *indices++;
-		Controller* ctrl0 = mControllers[index0];
-		Controller* ctrl1 = mControllers[index1];
+		Controller& current = *mControllers[i];
+		current.mOverlapRecover = PxVec3(0.0f);
 
-		bool keep=true;
-		if(cctFilterCb)
-			keep = cctFilterCb->filter(*ctrl0->getPxController(), *ctrl1->getPxController());
-
-		if(keep)
-			InteractionCharacterCharacter(ctrl0, ctrl1, elapsedTime);
+		PxExtendedBounds3 bounds;
+		current.getWorldBox(bounds);
+		boxes[i] = PxBounds3(toVec3(bounds.minimum), toVec3(bounds.maximum));
 	}
+
+	forEachOverlappingBounds(boxes, nbControllers, [this, cctFilterCb, elapsedTime](PxU32 index0, PxU32 index1)
+	{
+		Controller& first = *mControllers[index0];
+		Controller& second = *mControllers[index1];
+		if(!cctFilterCb || cctFilterCb->filter(*first.getPxController(), *second.getPxController()))
+			resolveControllerOverlap(first, second, elapsedTime);
+	});
 
 	PX_FREE(boxes);
 }

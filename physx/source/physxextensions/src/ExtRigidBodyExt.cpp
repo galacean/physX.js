@@ -51,6 +51,7 @@
 #include "PsFoundation.h"
 
 #include "CmUtils.h"
+#include <cfloat>
 
 using namespace physx;
 using namespace Cm;
@@ -312,6 +313,83 @@ bool PxRigidBodyExt::updateMassAndInertia(PxRigidBody& body, PxReal density, con
 	return ::updateMassAndInertia(false, body, &density, 1, massLocalPose, includeNonSimShapes);
 }
 
+static bool isUsableMassProperty(PxReal value)
+{
+	return value >= FLT_MIN && PxIsFinite(value);
+}
+
+static PxMassProperties computeShapeMassProperties(const PxShape* const* shapes, PxU32 shapeCount, bool simulationShapesOnly)
+{
+	Ps::InlineArray<PxMassProperties, 16> massProps;
+	massProps.reserve(shapeCount);
+	Ps::InlineArray<PxTransform, 16> localTransforms;
+	localTransforms.reserve(shapeCount);
+
+	for(PxU32 i = 0; i < shapeCount; ++i)
+	{
+		const PxShape* shape = shapes[i];
+		if(simulationShapesOnly && !(shape->getFlags() & PxShapeFlag::eSIMULATION_SHAPE))
+			continue;
+		const PxGeometryHolder geometry = shape->getGeometry();
+		if(simulationShapesOnly)
+		{
+			const PxGeometryType::Enum type = geometry.getType();
+			if(type != PxGeometryType::eSPHERE && type != PxGeometryType::eBOX &&
+				type != PxGeometryType::eCAPSULE && type != PxGeometryType::eCONVEXMESH)
+				return PxMassProperties(0.0f, PxMat33(PxZero), PxVec3(PxZero));
+		}
+		massProps.pushBack(PxMassProperties(geometry.any()));
+		localTransforms.pushBack(shape->getLocalPose());
+	}
+
+	return PxMassProperties::sum(massProps.begin(), localTransforms.begin(), massProps.size());
+}
+
+PxReal PxRigidBodyExt::setDensity(PxRigidBody& body, PxReal density, bool automaticCenterOfMass, bool automaticInertiaTensor)
+{
+	if(!isUsableMassProperty(density))
+		return 0.0f;
+
+	// Uniform density scales mass and moments without changing the centroid or principal axes.
+	Ps::InlineArray<PxShape*, 16> shapes;
+	shapes.resize(body.getNbShapes());
+	const PxU32 shapeCount = body.getShapes(shapes.begin(), shapes.size());
+	const PxMassProperties properties = computeShapeMassProperties(shapes.begin(), shapeCount, true);
+	const PxReal mass = properties.mass * density;
+	if(!isUsableMassProperty(mass))
+		return 0.0f;
+
+	PxTransform pose;
+	PxVec3 tensor;
+	if(automaticCenterOfMass || automaticInertiaTensor)
+	{
+		const PxVec3 center = properties.centerOfMass;
+		if(!center.isFinite())
+			return 0.0f;
+		pose = body.getCMassLocalPose();
+		if(automaticCenterOfMass)
+			pose.p = center;
+		if(automaticInertiaTensor)
+		{
+			const PxMat33& inertia = properties.inertiaTensor;
+			if(!inertia.column0.isFinite() || !inertia.column1.isFinite() || !inertia.column2.isFinite())
+				return 0.0f;
+			tensor = PxDiagonalize(inertia, pose.q) * density;
+			if(!isUsableMassProperty(tensor.x) || !isUsableMassProperty(tensor.y) || !isUsableMassProperty(tensor.z))
+				return 0.0f;
+		}
+		if(!pose.isSane())
+			return 0.0f;
+	}
+
+	body.setMass(mass);
+	if(automaticInertiaTensor)
+		body.setMassSpaceInertiaTensor(tensor);
+	if(automaticCenterOfMass || automaticInertiaTensor)
+		body.setCMassLocalPose(pose);
+	return mass;
+}
+
 static bool setMassAndUpdateInertia(bool multipleMassOrDensity, PxRigidBody& body, const PxReal* masses, PxU32 massCount, const PxVec3* massLocalPose, bool includeNonSimShapes)
 {
 	bool success;
@@ -352,8 +430,16 @@ static bool setMassAndUpdateInertia(bool multipleMassOrDensity, PxRigidBody& bod
 		success = false;
 	}
 
-	PX_ASSERT(orient.isFinite());
-	PX_ASSERT(diagTensor.isFinite());
+	// A degenerate volume can produce a non-finite mass frame. Use the empty body's defaults.
+	if(!com.isFinite() || !orient.isSane() || !diagTensor.isFinite())
+	{
+		if(lockCom && !massLocalPose->isFinite())
+			return false;
+		com = lockCom ? *massLocalPose : PxVec3(0);
+		orient = PxQuat(PxIdentity);
+		diagTensor = PxVec3(1.0f);
+		success = false;
+	}
 
 	body.setMass(massOut);
 	body.setMassSpaceInertiaTensor(diagTensor);
@@ -374,20 +460,7 @@ bool PxRigidBodyExt::setMassAndUpdateInertia(PxRigidBody& body, PxReal mass, con
 
 PxMassProperties PxRigidBodyExt::computeMassPropertiesFromShapes(const PxShape* const* shapes, PxU32 shapeCount)
 {
-	Ps::InlineArray<PxMassProperties, 16> massProps;
-	massProps.reserve(shapeCount);
-	Ps::InlineArray<PxTransform, 16> localTransforms;
-	localTransforms.reserve(shapeCount);
-
-	for(PxU32 shapeIdx=0; shapeIdx < shapeCount; shapeIdx++)
-	{
-		const PxShape* shape = shapes[shapeIdx];
-		PxMassProperties mp(shape->getGeometry().any());
-		massProps.pushBack(mp);
-		localTransforms.pushBack(shape->getLocalPose());
-	}
-
-	return PxMassProperties::sum(massProps.begin(), localTransforms.begin(), shapeCount);
+	return computeShapeMassProperties(shapes, shapeCount, false);
 }
 
 PX_INLINE void addForceAtPosInternal(PxRigidBody& body, const PxVec3& force, const PxVec3& pos, PxForceMode::Enum mode, bool wakeup)

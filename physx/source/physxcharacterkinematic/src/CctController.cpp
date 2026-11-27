@@ -37,6 +37,7 @@
 
 #include "CctController.h"
 #include "CctBoxController.h"
+#include "CctCapsuleController.h"
 #include "CctCharacterControllerManager.h"
 #include "PsUtilities.h"
 #include "PsFoundation.h"
@@ -64,8 +65,7 @@ Controller::Controller(const PxControllerDesc& desc, PxScene* s) :
 	mUserParams.mSlopeLimit				= desc.slopeLimit;
 	mUserParams.mContactOffset			= desc.contactOffset;
 	mUserParams.mStepOffset				= desc.stepOffset;
-	mUserParams.mInvisibleWallHeight	= desc.invisibleWallHeight;
-	mUserParams.mMaxJumpHeight			= desc.maxJumpHeight;
+	setSlopeWalls(desc.invisibleWallHeight, desc.maxJumpHeight);
 	mUserParams.mHandleSlope			= desc.slopeLimit!=0.0f;
 
 	mReportCallback						= desc.reportCallback;
@@ -128,10 +128,29 @@ void Controller::setUpDirectionInternal(const PxVec3& up)
 	if(mUserParams.mUpDirection==up)
 		return;
 
-	const PxQuat q = PxShortestRotation(PxVec3(1.0f, 0.0f, 0.0f), up);
+	PxQuat q;
+	if(up.x < 0.0f)
+	{
+		// Recover the half-angle cosine from the lateral component near the opposite direction.
+		const PxF64 y = -up.z, z = up.y;
+		const PxF64 perpendicular = PxSqrt(y*y + z*z);
+		if(perpendicular > 0.0)
+		{
+			const PxReal halfSine = PxSqrt((1.0f - up.x)*0.5f);
+			const PxF64 scale = halfSine/perpendicular;
+			q = PxQuat(0.0f, PxReal(y*scale), PxReal(z*scale), PxReal(perpendicular/(2.0f*halfSine)));
+		}
+		else
+			q = PxQuat(0.0f, -1.0f, 0.0f, 0.0f);
+	}
+	else
+		q = PxShortestRotation(PxVec3(1.0f, 0.0f, 0.0f), up);
 
 	mUserParams.mQuatFromUp		= q;
 	mUserParams.mUpDirection	= up;
+
+	if(mUserParams.mInvisibleWallHeight > 0.0f)
+		invalidateGeometryCache();
 
 	// Update kinematic actor
 	/*if(mKineActor)
@@ -143,6 +162,55 @@ void Controller::setUpDirectionInternal(const PxVec3& up)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Controller::invalidateGeometryCache()
+{
+	// Rebuild wall triangles on the next sweep while retaining riding platform contact.
+	if(!mManager)
+		return;
+	const bool lockWrite = mManager->mLockingEnabled;
+	if(lockWrite)
+		mWriteLock.lock();
+	mCctModule.mCacheBounds.setEmpty();
+	if(lockWrite)
+		mWriteLock.unlock();
+}
+
+void Controller::setSlopeLimitInternal(PxF32 slopeLimit)
+{
+	if(slopeLimit >= 0.0f && mUserParams.mSlopeLimit != slopeLimit)
+	{
+		mUserParams.mSlopeLimit = slopeLimit;
+		mUserParams.mHandleSlope = slopeLimit > 0.0f;
+		if(mUserParams.mInvisibleWallHeight > 0.0f)
+			invalidateGeometryCache();
+	}
+}
+
+void Controller::setSlopeWalls(PxF32 wallHeight, PxF32 jumpHeight)
+{
+	const PxF32 effectiveJumpHeight = wallHeight > 0.0f ? jumpHeight : 0.0f;
+	if(mUserParams.mInvisibleWallHeight == wallHeight && mUserParams.mMaxJumpHeight == effectiveJumpHeight)
+		return;
+
+	mUserParams.mInvisibleWallHeight = wallHeight;
+	mUserParams.mMaxJumpHeight = effectiveJumpHeight;
+	invalidateGeometryCache();
+}
+
+namespace physx
+{
+void setControllerSlopeWalls(PxController& controller, PxF32 wallHeight, PxF32 jumpHeight)
+{
+	if(!PxIsFinite(wallHeight) || wallHeight < 0.0f || !PxIsFinite(jumpHeight) || jumpHeight < 0.0f)
+		return;
+
+	Controller& impl = controller.getType() == PxControllerShapeType::eBOX
+		? static_cast<Controller&>(static_cast<BoxController&>(controller))
+		: static_cast<Controller&>(static_cast<CapsuleController&>(controller));
+	impl.setSlopeWalls(wallHeight, jumpHeight);
+}
+}
 
 void Controller::releaseInternal()
 {

@@ -111,6 +111,8 @@ NpScene::NpScene(const PxSceneDesc& desc) :
 	mSanityBounds			(desc.sanityBounds),
 	mNbClients				(1),			//we always have the default client.
 	mClientBehaviorFlags	(PX_DEBUG_EXP("sceneBehaviorFlags")),
+	mOwnedCpuDispatcher		(NULL),
+	mOwnedCpuDispatcherReleaser(NULL),
 	mSceneCompletion		(getContextId(), mPhysicsDone),
 	mCollisionCompletion	(getContextId(), mCollisionDone),
 	mSceneQueriesCompletion	(getContextId(), mSceneQueriesDone),
@@ -184,6 +186,13 @@ NpScene::~NpScene()
 		unlockWrite();
 
 	TlsFree(mThreadReadWriteDepth);
+
+	if (mOwnedCpuDispatcher && mOwnedCpuDispatcherReleaser)
+	{
+		mOwnedCpuDispatcherReleaser(mOwnedCpuDispatcher);
+		mOwnedCpuDispatcher = NULL;
+		mOwnedCpuDispatcherReleaser = NULL;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2485,6 +2494,8 @@ bool NpScene::setVisualizationParameter(PxVisualizationParameter::Enum param, Px
 	else
 	{
 		mScene.setVisualizationParameter(param, value);
+		if (param == PxVisualizationParameter::eSCALE && value == 0.0f && getSimulationStage() == Sc::SimulationStage::eCOMPLETE)
+			mRenderBuffer.clear();
 		return true;
 	}
 }
@@ -2905,12 +2916,8 @@ void NpScene::shiftOrigin(const PxVec3& shift)
 	//
 	mSQManager.shiftOrigin(shift);
 
-#if PX_ENABLE_DEBUG_VISUALIZATION
-	//
-	// debug visualization
-	//
-	mRenderBuffer.shift(-shift);
-#endif
+	// Discard the previous simulation's debug sample until the next step completes.
+	mRenderBuffer.clear();
 }
 
 #if PX_SUPPORT_PVD

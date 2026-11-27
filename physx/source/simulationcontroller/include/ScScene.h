@@ -466,6 +466,7 @@ namespace Sc
 
 					void						notifyInteractionActivated(Interaction* interaction);
 					void						notifyInteractionDeactivated(Interaction* interaction);
+					void						markFilterPairDirty(PxU32 first, PxU32 second, bool shapeIds);
 
 	// for pool management of interaction arrays, a major cause of dynamic allocation
 					void**						allocatePointerBlock(PxU32 size);
@@ -587,6 +588,14 @@ namespace Sc
 		PX_FORCE_INLINE SqBoundsManager&			getSqBoundsManager()					const	{ return *mSqBoundsManager; }
 
 		PX_FORCE_INLINE	PxReal						getVisualizationScale()					const	{ return mVisualizationScale;			}  // This is actually redundant but makes checks whether debug visualization is enabled faster
+		PX_FORCE_INLINE bool						hasContactVisualization()				const
+		{
+			return mVisualizationScale != 0.0f &&
+				(getVisualizationParameter(PxVisualizationParameter::eCONTACT_POINT) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_NORMAL) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_ERROR) ||
+				 getVisualizationParameter(PxVisualizationParameter::eCONTACT_FORCE));
+		}
 
 		PX_FORCE_INLINE BodyCore* const*			getSleepBodiesArray(PxU32& count)				{ count = mSleepBodies.size(); return mSleepBodies.getEntries(); }
 
@@ -597,6 +606,8 @@ namespace Sc
 		PX_FORCE_INLINE bool						getStabilizationEnabled()				const	{ return mEnableStabilization; }
 
 		PX_FORCE_INLINE void						setPostSolverVelocityNeeded()					{ mContactReportsNeedPostSolverVelocity = true; }
+		PX_FORCE_INLINE bool						getContactEventsEnabled() const			{ return mContactEventsEnabled; }
+		PX_FORCE_INLINE void						setContactEventsEnabled(bool enabled)	{ mContactEventsEnabled = enabled; }
 
 									ObjectIDTracker&	getConstraintIDTracker() { return *mConstraintIDTracker; }
 
@@ -856,8 +867,6 @@ namespace Sc
 
 					PxReal						mVisualizationScale;  // Redundant but makes checks whether debug visualization is enabled faster
 
-					bool						mVisualizationParameterChanged;
-
 					// statics:
 					PxU32						mNbRigidStatics;
 					PxU32						mNbRigidDynamics;
@@ -971,6 +980,7 @@ namespace Sc
 					PxCudaContextManager*													mCudaContextManager;
 
 					bool																	mContactReportsNeedPostSolverVelocity;
+					bool																	mContactEventsEnabled;
 					bool																	mUseGpuRigidBodies;
 
 					SimulationStage::Enum													mSimulationStage;

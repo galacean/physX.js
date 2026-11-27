@@ -5,6 +5,7 @@
 
 #include <chrono>
 
+#include "BindingHelper.h"
 #include "binding/ActorBinding.h"
 #include "binding/ControllerBinding.h"
 #include "binding/CookingBinding.h"
@@ -17,6 +18,17 @@
 
 using namespace physx;
 using namespace emscripten;
+
+template <auto Create>
+static auto createJoint(PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &position0, const PxQuat &rotation0,
+                        PxRigidActor *actor1, const PxVec3 &position1, const PxQuat &rotation1)
+    -> decltype(Create(physics, actor0, PxTransform(position0, rotation0), actor1, PxTransform(position1, rotation1))) {
+    if (!areValidJointActors(actor0, actor1) || !position0.isFinite() || !rotation0.isSane() ||
+        !position1.isFinite() || !rotation1.isSane()) {
+        return nullptr;
+    }
+    return Create(physics, actor0, PxTransform(position0, rotation0), actor1, PxTransform(position1, rotation1));
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 EMSCRIPTEN_BINDINGS(physx) {
@@ -34,7 +46,12 @@ EMSCRIPTEN_BINDINGS(physx) {
     function("PxInitExtensions", &PxInitExtensions, allow_raw_pointers());
     function("PxCloseExtensions", &PxCloseExtensions, allow_raw_pointers());
     function("PxDefaultCpuDispatcherCreate", &PxDefaultCpuDispatcherCreate, allow_raw_pointers());
-    function("PxCreatePhysics", &PxCreateBasePhysics, allow_raw_pointers());
+    function("PxCreatePhysics", optional_override([](PxU32 version, PxFoundation &foundation,
+                                                    const PxTolerancesScale &scale, bool trackAllocations, PxPvd *pvd) {
+        PxPhysics *physics = PxCreateBasePhysics(version, foundation, scale, trackAllocations, pvd);
+        if (physics && physics->getNbScenes() == 0) PxRegisterHeightFields(*physics);
+        return physics;
+    }), allow_raw_pointers());
 
     class_<PxAllocatorCallback>("PxAllocatorCallback");
     class_<PxDefaultAllocator, base<PxAllocatorCallback>>("PxDefaultAllocator").constructor<>();
@@ -49,7 +66,9 @@ EMSCRIPTEN_BINDINGS(physx) {
     class_<PxPhysics>("PxPhysics")
             .function("release", &PxPhysics::release)
             .function("getTolerancesScale", &PxPhysics::getTolerancesScale)
-            .function("createScene", &PxPhysics::createScene, allow_raw_pointers())
+            .function("createScene", optional_override([](PxPhysics &physics, const PxSceneDesc &desc) {
+                          return createSceneWithOwnedDispatcher(physics, desc);
+                      }), allow_raw_pointers())
             .function("createShape",
                       select_overload<PxShape *(const PxGeometry &, const PxMaterial &, bool, PxShapeFlags)>(
                               &PxPhysics::createShape),
@@ -57,46 +76,11 @@ EMSCRIPTEN_BINDINGS(physx) {
             .function("createMaterial", &PxPhysics::createMaterial, allow_raw_pointers())
             .function("createRigidDynamic", &PxPhysics::createRigidDynamic, allow_raw_pointers())
             .function("createRigidStatic", &PxPhysics::createRigidStatic, allow_raw_pointers())
-            .function("createFixedJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxFixedJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                    actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createRevoluteJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxRevoluteJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                       actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createDistanceJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxDistanceJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                       actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createPrismaticJoint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxPrismaticJointCreate(physics, actor0, PxTransform(localPosition0, localRotation0),
-                                                        actor1, PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers())  // ✅
-            .function("createD6Joint",
-                      optional_override([](PxPhysics &physics, PxRigidActor *actor0, const PxVec3 &localPosition0,
-                                           const PxQuat &localRotation0, PxRigidActor *actor1,
-                                           const PxVec3 &localPosition1, const PxQuat &localRotation1) {
-                          return PxD6JointCreate(physics, actor0, PxTransform(localPosition0, localRotation0), actor1,
-                                                 PxTransform(localPosition1, localRotation1));
-                      }),
-                      allow_raw_pointers());  // ✅
+            .function("createFixedJoint", &createJoint<PxFixedJointCreate>, allow_raw_pointers())
+            .function("createRevoluteJoint", &createJoint<PxRevoluteJointCreate>, allow_raw_pointers())
+            .function("createDistanceJoint", &createJoint<PxDistanceJointCreate>, allow_raw_pointers())
+            .function("createPrismaticJoint", &createJoint<PxPrismaticJointCreate>, allow_raw_pointers())
+            .function("createD6Joint", &createJoint<PxD6JointCreate>, allow_raw_pointers());
 
     class_<PxErrorCallback>("PxErrorCallback");
     class_<PxDefaultErrorCallback, base<PxErrorCallback>>("PxDefaultErrorCallback").constructor<>();

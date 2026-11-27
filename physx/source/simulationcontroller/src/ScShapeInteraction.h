@@ -85,7 +85,7 @@ namespace Sc
 			IS_IN_CONTACT_EVENT_LIST		= IS_IN_PERSISTENT_EVENT_LIST | IS_IN_FORCE_THRESHOLD_EVENT_LIST,
 
 			LL_MANAGER_RECREATE_EVENT		= CONTACT_REPORT_EVENTS | CONTACTS_COLLECT_POINTS |
-											  CONTACTS_RESPONSE_DISABLED | PxU32(PxPairFlag::eMODIFY_CONTACTS)
+												  CONTACTS_RESPONSE_DISABLED
 		};
 												ShapeInteraction(ShapeSim& s1, ShapeSim& s2, PxPairFlags pairFlags, PxsContactManager* contactManager);
 												~ShapeInteraction();

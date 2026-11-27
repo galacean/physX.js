@@ -53,7 +53,7 @@ namespace Cct
 
 		// Controller
 		virtual	PxF32								getHalfHeightInternal()				const					{ return mHalfHeight;					}
-		virtual	bool								getWorldBox(PxExtendedBounds3& box) const;
+		virtual	void								getWorldBox(PxExtendedBounds3& box) const;
 		virtual	PxController*						getPxController()											{ return this;							}
 		//~Controller
 
@@ -77,8 +77,7 @@ namespace Cct
 		virtual PxVec3								getUpDirection()					const					{ return mUserParams.mUpDirection;		}
 		virtual	void								setUpDirection(const PxVec3& up)							{ setUpDirectionInternal(up);			}
 		virtual PxF32								getSlopeLimit()						const					{ return mUserParams.mSlopeLimit;		}
-		virtual void								setSlopeLimit(PxF32 slopeLimit)								{ if(slopeLimit>0.0f)
-																													mUserParams.mSlopeLimit = slopeLimit;}
+		virtual void								setSlopeLimit(PxF32 slopeLimit)								{ setSlopeLimitInternal(slopeLimit);	}
 		virtual	void								invalidateCache();
 		virtual	PxScene*							getScene()													{ return mScene;						}
 		virtual	void*								getUserData()						const					{ return mUserData;						}

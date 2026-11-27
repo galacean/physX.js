@@ -27,6 +27,7 @@
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#include "foundation/PxMat33.h"
 #include "geometry/PxBoxGeometry.h"
 #include "characterkinematic/PxController.h"
 #include "PxRigidDynamic.h"
@@ -83,10 +84,13 @@ void BoxController::invalidateCache()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool BoxController::getWorldBox(PxExtendedBounds3& box) const
+void BoxController::getWorldBox(PxExtendedBounds3& box) const
 {
-	setCenterExtents(box, mPosition, PxVec3(mHalfHeight, mHalfSideExtent, mHalfForwardExtent));
-	return true;
+	PxExtendedBox obb;
+	getOBB(obb);
+	const PxMat33 basis(obb.rot);
+	const PxVec3 extents = basis.column0.abs()*obb.extents.x + basis.column1.abs()*obb.extents.y + basis.column2.abs()*obb.extents.z;
+	setCenterExtents(box, obb.center, extents);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,12 +176,8 @@ bool BoxController::setFootPosition(const PxExtendedVec3& position)
 
 void BoxController::getOBB(PxExtendedBox& obb) const
 {
-	// PT: TODO: optimize this
-	PxExtendedBounds3 worldBox;
-	getWorldBox(worldBox);
-
-	getCenter(worldBox, obb.center);
-	getExtents(worldBox, obb.extents);
+	obb.center = mPosition;
+	obb.extents = PxVec3(mHalfHeight, mHalfSideExtent, mHalfForwardExtent);
 	obb.rot = mUserParams.mQuatFromUp;
 }
 

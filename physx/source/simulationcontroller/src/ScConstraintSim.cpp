@@ -53,11 +53,26 @@ PX_FORCE_INLINE void invalidateConstraintGroupsOnAdd(Sc::ConstraintProjectionMan
 		cpm.invalidateGroup(*b1->getConstraintGroup(), &constraint);
 }
 
+static void refilterConstraintPair(const Sc::ConstraintInteraction& interaction)
+{
+	Sc::ActorSim& a0 = interaction.getActorSim0();
+	Sc::ActorSim& a1 = interaction.getActorSim1();
+	const Sc::ActorSim& world = a0.getScene().getStaticAnchor();
+	if(&a0 == &world || &a1 == &world)
+		return;
+
+	// Refilter all shape pairs between the two actors without invalidating unrelated contacts.
+	if(a0.getActorInteractionCount() < a1.getActorInteractionCount())
+		a0.setActorsInteractionsDirty(Sc::InteractionDirtyFlag::eFILTER_STATE, &a1, Sc::InteractionFlag::eRB_ELEMENT);
+	else
+		a1.setActorsInteractionsDirty(Sc::InteractionDirtyFlag::eFILTER_STATE, &a0, Sc::InteractionFlag::eRB_ELEMENT);
+}
+
 Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore* r1, Scene& scene) :
 	mScene		(scene),
 	mCore		(core),
 	mInteraction(NULL),
-	mFlags		(0)
+	mFlags		(core.getFlags().isSet(PxConstraintFlag::eBROKEN) ? eBROKEN : 0)
 {
 	mBodies[0] = (r0 && (r0->getActorCoreType() != PxActorType::eRIGID_STATIC)) ? static_cast<BodySim*>(r0->getSim()) : 0;
 	mBodies[1] = (r1 && (r1->getActorCoreType() != PxActorType::eRIGID_STATIC)) ? static_cast<BodySim*>(r1->getSim()) : 0;
@@ -70,7 +85,9 @@ Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore*
 	}
 
 	writeBackPool.resize(PxMax(writeBackPool.size(), mLowLevelConstraint.index + 1));
-	writeBackPool[mLowLevelConstraint.index].initialize();
+	Dy::ConstraintWriteback& writeback = writeBackPool[mLowLevelConstraint.index];
+	writeback.initialize();
+	writeback.broken = isBroken();
 
 	if (!createLLConstraint())
 		return;
@@ -93,6 +110,11 @@ Sc::ConstraintSim::ConstraintSim(ConstraintCore& core, RigidCore* r0, RigidCore*
 																	r0 ? *r0->getSim() : scene.getStaticAnchor(), 
 																	r1 ? *r1->getSim() : scene.getStaticAnchor());
 
+	if(isBroken())
+		mInteraction->destroy();
+	else if(!(core.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+		refilterConstraintPair(*mInteraction);
+
 	PX_ASSERT(!mInteraction->isRegistered());  // constraint interactions must not register in the scene, there is a list of Sc::ConstraintSim instead
 }
 
@@ -105,7 +127,11 @@ Sc::ConstraintSim::~ConstraintSim()
 		mScene.getProjectionManager().removeFromPendingGroupUpdates(*this);
 
 	if (!isBroken())
+	{
+		if(!(mCore.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+			refilterConstraintPair(*mInteraction);
 		mInteraction->destroy();
+	}
 
 	mScene.getConstraintIDTracker().releaseID(mLowLevelConstraint.index);
 	mScene.getConstraintInteractionPool()->destroy(mInteraction);
@@ -171,7 +197,11 @@ void Sc::ConstraintSim::preBodiesChange()
 		mScene.getProjectionManager().invalidateGroup(*b->getConstraintGroup(), this);
 
 	if (!isBroken())
+	{
+		if(!(mCore.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+			refilterConstraintPair(*mInteraction);
 		mInteraction->destroy();
+	}
 
 	mScene.getConstraintInteractionPool()->destroy(mInteraction);
 	mInteraction = NULL;
@@ -206,6 +236,11 @@ void Sc::ConstraintSim::postBodiesChange(RigidCore* r0, RigidCore* r1)
 	mInteraction = mScene.getConstraintInteractionPool()->construct(cs, 
 																	r0 ? *r0->getSim() : mScene.getStaticAnchor(), 
 																	r1 ? *r1->getSim() : mScene.getStaticAnchor());
+	// Rebinding updates the actor references but keeps a broken constraint unregistered.
+	if(isBroken())
+		mInteraction->destroy();
+	else if(!(mCore.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+		refilterConstraintPair(*mInteraction);
 }
 
 void Sc::ConstraintSim::checkMaxForceExceeded()
@@ -220,15 +255,8 @@ void Sc::ConstraintSim::checkMaxForceExceeded()
 		mCore.breakApart();
 		mInteraction->destroy();
 
-		// update related SIPs
-		{
-			ActorSim& a0 = mInteraction->getActorSim0();
-			ActorSim& a1 = mInteraction->getActorSim1();
-			ActorSim& actor = (a0.getActorInteractionCount()<  a1.getActorInteractionCount()) ? a0 : a1;
-
-			actor.setActorsInteractionsDirty(InteractionDirtyFlag::eFILTER_STATE, NULL, InteractionFlag::eRB_ELEMENT);
-			// because broken constraints can re-enable contact response between the two bodies
-		}
+		if(!(mCore.getFlags() & PxConstraintFlag::eCOLLISION_ENABLED))
+			refilterConstraintPair(*mInteraction);
 
 		PX_ASSERT(!readFlag(eCHECK_MAX_FORCE_EXCEEDED));
 	}
@@ -275,6 +303,9 @@ void Sc::ConstraintSim::setBreakForceLL(PxReal linear, PxReal angular)
 void Sc::ConstraintSim::postFlagChange(PxConstraintFlags oldFlags, PxConstraintFlags newFlags)
 {
 	mLowLevelConstraint.flags = newFlags;
+
+	if(!isBroken() && oldFlags.isSet(PxConstraintFlag::eCOLLISION_ENABLED) != newFlags.isSet(PxConstraintFlag::eCOLLISION_ENABLED))
+		refilterConstraintPair(*mInteraction);
 
 	// PT: don't convert to bool if not needed
 	const PxU32 hadProjection   = (oldFlags & PxConstraintFlag::ePROJECTION);
@@ -457,7 +488,8 @@ PX_INLINE Sc::BodySim* Sc::ConstraintSim::getConstraintGroupBody()
 
 void Sc::ConstraintSim::visualize(PxRenderBuffer& output)
 {
-	if(!(getCore().getFlags() & PxConstraintFlag::eVISUALIZATION))
+	const PxConstraintVisualize visualize = mCore.getVisualize();
+	if(!visualize || !(mCore.getFlags() & PxConstraintFlag::eVISUALIZATION))
 		return;
 
 	PxsRigidBody* b0 = mLowLevelConstraint.body0;
@@ -479,7 +511,7 @@ void Sc::ConstraintSim::visualize(PxRenderBuffer& output)
 	if(limitScale!=0.0f)
 		flags |= PxConstraintVisualizationFlag::eLIMITS;
 
-	mCore.getVisualize()(viz, mLowLevelConstraint.constantBlock, t0, t1, flags);
+	visualize(viz, mLowLevelConstraint.constantBlock, t0, t1, flags);
 }
 
 void Sc::ConstraintSim::setConstantsLL(void* addr)

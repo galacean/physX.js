@@ -629,6 +629,7 @@ void Scb::Scene::addConstraint(Scb::Constraint& constraint)
 
 void Scb::Scene::removeConstraint(Scb::Constraint& constraint)
 {
+	constraint.clearForceReadback();
 	if (!mIsBuffering)
 	{
 		mScene.removeConstraint(constraint.getScConstraint());

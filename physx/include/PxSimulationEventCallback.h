@@ -868,7 +868,7 @@ class PxSimulationEventCallback
 	Shapes which have been marked as triggers using PxShapeFlag::eTRIGGER_SHAPE will send events
 	according to the pair flag specification in the filter shader (see #PxPairFlag, #PxSimulationFilterShader).
 
-	\note Trigger shapes will no longer send notification events for interactions with other trigger shapes.
+	\note Either shape in a trigger pair can be a trigger, including pairs of two triggers.
 
 	\param[in] pairs - The trigger pair events.
 	\param[in] count - The number of trigger pair events.

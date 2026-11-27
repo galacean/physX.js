@@ -98,6 +98,7 @@ public:
 	PX_INLINE void						setBodies(Scb::RigidObject* r0, Scb::RigidObject* r1);
 
 	PX_INLINE void						getForce(PxVec3& force, PxVec3& torque) const;
+	PX_INLINE void						clearForceReadback();
 
 	PX_INLINE void						setBreakForce(PxReal linear, PxReal angular);
 	PX_INLINE void						getBreakForce(PxReal& linear, PxReal& angular) const;
@@ -193,6 +194,11 @@ PX_INLINE void Scb::Constraint::setBodies(Scb::RigidObject* r0, Scb::RigidObject
 		markUpdated(BF_BODIES);
 	}
 
+	clearForceReadback();
+}
+
+PX_INLINE void Scb::Constraint::clearForceReadback()
+{
 	mBufferedForce = PxVec3(0.0f);
 	mBufferedTorque = PxVec3(0.0f);
 }
