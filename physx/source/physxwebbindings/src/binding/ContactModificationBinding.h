@@ -4,7 +4,16 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-EM_JS_DEPS(contactModificationErrors, "$UTF8ToString");
+EM_JS_DEPS(contactModificationBindings, "$UTF8ToString,$Emval");
+EM_JS(void, invokeContactModification, (emscripten::EM_VAL callback), {
+    try {
+        Emval.toValue(callback)();
+    } catch (error) {
+        // With zero physics workers, the native task unwinds before the microtask runs.
+        queueMicrotask(() => { throw error; });
+    }
+});
+
 EM_JS(void, throwContactModificationError, (const char *message), {
     throw new Error(UTF8ToString(message));
 });
@@ -194,7 +203,7 @@ private:
         mPairs = pairs;
         mPairCount = count;
         mCCD = ccd;
-        mCallback();
+        invokeContactModification(mCallback.as_handle());
         mPairs = nullptr;
         mPairCount = 0;
         mCCD = false;
